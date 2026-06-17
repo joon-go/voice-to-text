@@ -4,6 +4,8 @@ const BASE = "https://api.usepylon.com";
 const TOKEN = process.env.PYLON_API_TOKEN;
 const TIER_SLUG = process.env.PYLON_TIER_FIELD_SLUG || "support_tier";
 const TIER_VALUE = process.env.PYLON_TIER_VALUE || "Enterprise Elite";
+const PRIORITY_SLUG = process.env.PYLON_PRIORITY_FIELD_SLUG || "priority";
+const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "P0";
 const BOT_IDS = (process.env.PYLON_BOT_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 function headers() {
@@ -30,22 +32,28 @@ export function needsFirstResponse(messages = []) {
   );
 }
 
-function tierMatches(issue) {
+function fieldMatches(issue, slug, target) {
   const fields = issue.custom_fields || {};
-  // custom_fields may be an object keyed by slug or an array of {slug,value}
   if (Array.isArray(fields)) {
-    return fields.some((f) => f.slug === TIER_SLUG && (f.value === TIER_VALUE || (f.values || []).includes(TIER_VALUE)));
+    return fields.some((f) => f.slug === slug && (f.value === target || (f.values || []).includes(target)));
   }
-  const v = fields[TIER_SLUG];
-  return v?.value === TIER_VALUE || (v?.values || []).includes(TIER_VALUE) || v === TIER_VALUE;
+  const v = fields[slug];
+  return v?.value === target || (v?.values || []).includes(target) || v === target;
 }
 
-// Open Enterprise Elite issues still awaiting a first response.
+function isEliteP0(issue) {
+  return fieldMatches(issue, TIER_SLUG, TIER_VALUE) && fieldMatches(issue, PRIORITY_SLUG, PRIORITY_VALUE);
+}
+
+// Open Enterprise Elite P0 issues still awaiting a first response.
 export async function listEliteAwaitingFirstResponse() {
-  // Pull open issues, then filter by the support_tier CUSTOM FIELD (not tags —
-  // tag search misses Elite tickets where the tier only lives in this field).
-  const { data: issues = [] } = await pylon(`/issues?status=open&limit=100`);
-  const elite = issues.filter(tierMatches);
+  // Pull open issues, then filter by the support_tier AND priority CUSTOM FIELDS
+  // (not tags — tag search misses tickets where the tier only lives in a field).
+  const now = new Date();
+  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const end = now.toISOString();
+  const { data: issues = [] } = await pylon(`/issues?status=open&limit=100&start_time=${start}&end_time=${end}`);
+  const elite = issues.filter(isEliteP0);
 
   const out = [];
   for (const issue of elite) {

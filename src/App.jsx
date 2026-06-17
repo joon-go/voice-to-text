@@ -107,6 +107,7 @@ function Ticket({ ticket, me, onBack, onSent }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [frozenLeft, setFrozenLeft] = useState(null);
   const recRef = useRef(null), baseRef = useRef("");
 
   useEffect(() => { api.summarize(ticket.id, ticket.summary).then(setSummary).catch(() => {}); }, [ticket.id, ticket.summary]);
@@ -141,7 +142,7 @@ function Ticket({ ticket, me, onBack, onSent }) {
     window.speechSynthesis?.cancel(); recRef.current?.stop();
     try {
       await api.respond({ issueId: ticket.id, body: text.trim(), userId: me.id, incidentId: ticket.incidentId });
-      setSent(true); onSent(ticket.id, Math.max(0, left));
+      setFrozenLeft(Math.max(0, left)); setSent(true); onSent(ticket.id, Math.max(0, left));
     } catch (e) { setErr(String(e.message)); setBusy(false); }
   };
 
@@ -149,7 +150,7 @@ function Ticket({ ticket, me, onBack, onSent }) {
     <div className="er-sent">
       <CheckCircle2 size={44} />
       <h2>First response posted</h2>
-      <p>Posted as {me.name} · clock stopped with <b>{fmt(Math.max(0, left))}</b> to spare</p>
+      <p>Posted as {me.name} · clock stopped with <b>{fmt(frozenLeft)}</b> to spare</p>
       <button className="er-btn er-btn-ghost" onClick={onBack}>Back to queue</button>
     </div>
   );
