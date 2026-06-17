@@ -56,8 +56,7 @@ export async function listEliteAwaitingFirstResponse() {
   // (not tags — tag search misses tickets where the tier only lives in a field).
   const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
   const now = new Date();
-  // Look back 2 hours — covers breached tickets well beyond the SLA window
-  const start = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const end = now.toISOString();
   let issues = [];
   try {
