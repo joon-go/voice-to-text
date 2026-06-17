@@ -161,7 +161,7 @@ function Ticket({ ticket, me, onBack, onSent }) {
         <button className="er-back" onClick={onBack}><ChevronLeft size={20} /></button>
         <div className="er-clock-wrap"><span className="er-clock-label">first response due in</span>
           <span className="er-clock">{k === "breach" ? "BREACHED" : fmt(left)}</span></div>
-        <div className="er-clock-acct">{ticket.account}<br /><span>#{ticket.number || ticket.id}</span></div>
+        <div className="er-clock-acct">{ticket.account}<br /><a href={`https://app.usepylon.com/support/issues/views/all-issues?issueNumber=${ticket.number || ""}&view=fs`} target="_blank" rel="noopener noreferrer">#{ticket.number || ticket.id}</a></div>
       </div>
       <div className="er-scroll er-ticket">
         <div className="er-meta">
