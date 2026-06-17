@@ -149,13 +149,16 @@ export async function getIssueThread(issueId) {
 // Post the engineer's ORIGINAL first response, authored by them (user_id),
 // so the SLA record credits the live person rather than the API token's identity.
 export async function postFirstResponse({ issueId, body, userId }) {
-  return pylon(`/issues/${issueId}/messages`, {
+  const { data: messages = [] } = await pylon(`/issues/${issueId}/messages`);
+  const lastMsg = messages[messages.length - 1];
+  if (!lastMsg) throw new Error("No messages found on issue to reply to");
+
+  return pylon(`/issues/${issueId}/reply`, {
     method: "POST",
     body: JSON.stringify({
       body_html: body,
-      is_private: false,
-      from_customer: false,
-      user_id: userId, // <-- attribution to the live engineer
+      message_id: lastMsg.id,
+      user_id: userId,
     }),
   });
 }
