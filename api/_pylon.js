@@ -50,20 +50,29 @@ function isEliteP0(issue) {
   return fieldMatches(issue, TIER_SLUG, TIER_VALUE) && fieldMatches(issue, PRIORITY_SLUG, PRIORITY_VALUE);
 }
 
-// Open Enterprise Elite P0 issues still awaiting a first response.
+// Open Enterprise Elite Urgent issues still awaiting a first response.
+// Uses server-side filtering to minimize API calls and avoid rate limits.
 export async function listEliteAwaitingFirstResponse() {
-  // Pull open issues, then filter by the support_tier AND priority CUSTOM FIELDS
-  // (not tags — tag search misses tickets where the tier only lives in a field).
   const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
-  const now = new Date();
-  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const end = now.toISOString();
+
+  const searchBody = {
+    states: ["new", "waiting_on_you"],
+    custom_field_filters: [
+      { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
+      { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
+    ],
+    limit: 25,
+  };
+
   let issues = [];
   try {
-    const res = await pylon(`/issues?status=open&limit=25&start_time=${start}&end_time=${end}`);
+    const res = await pylon(`/issues/search`, {
+      method: "POST",
+      body: JSON.stringify(searchBody),
+    });
     issues = res.data || res.issues || (Array.isArray(res) ? res : []);
   } catch (e) {
-    throw new Error(`Failed to list issues: ${e.message}`);
+    throw new Error(`Failed to search issues: ${e.message}`);
   }
 
   const out = [];
@@ -76,7 +85,6 @@ export async function listEliteAwaitingFirstResponse() {
       continue;
     }
     if (detail.first_response_time) continue;
-    if (!isEliteP0(detail)) continue;
 
     let messages = [];
     try {
@@ -119,20 +127,30 @@ export async function postFirstResponse({ issueId, body, userId }) {
 }
 
 export async function debugQueue() {
-  const now = new Date();
-  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const end = now.toISOString();
-  const url = `/issues?status=open&limit=25&start_time=${start}&end_time=${end}`;
-  const raw = await pylon(url);
-  const issues = raw.data || raw.issues || (Array.isArray(raw) ? raw : []);
-  let sample = null;
+  const searchBody = {
+    states: ["new", "waiting_on_you"],
+    custom_field_filters: [
+      { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
+      { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
+    ],
+    limit: 10,
+  };
+  let raw, issues = [], sample = null, searchError = null;
+  try {
+    raw = await pylon(`/issues/search`, { method: "POST", body: JSON.stringify(searchBody) });
+    issues = raw.data || raw.issues || (Array.isArray(raw) ? raw : []);
+  } catch (e) {
+    searchError = e.message;
+  }
   if (issues.length > 0) {
-    const full = await pylon(`/issues/${issues[0].id}`);
-    sample = full.data || full;
+    try {
+      const full = await pylon(`/issues/${issues[0].id}`);
+      sample = full.data || full;
+    } catch (e) { sample = { error: e.message }; }
   }
   return {
-    url, now: now.toISOString(), start, end,
-    rawKeys: Object.keys(raw),
+    searchBody, searchError,
+    rawKeys: raw ? Object.keys(raw) : null,
     issueCount: issues.length,
     issueIds: issues.map((i) => ({ id: i.id, title: i.title, state: i.state })),
     sampleDetail: sample ? { id: sample.id, custom_fields: sample.custom_fields, first_response_time: sample.first_response_time } : null,
