@@ -108,6 +108,7 @@ export async function listEliteAwaitingFirstResponse() {
 
     out.push({
       id: issue.id,
+      number: detail.number || issue.number,
       account: accountName || "Unknown account",
       customer: detail.requester?.name || detail.contact?.name || "Customer",
       channel: detail.source || issue.channel || "—",
