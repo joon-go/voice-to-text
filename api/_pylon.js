@@ -54,12 +54,14 @@ function isEliteP0(issue) {
 export async function listEliteAwaitingFirstResponse() {
   // Pull open issues, then filter by the support_tier AND priority CUSTOM FIELDS
   // (not tags — tag search misses tickets where the tier only lives in a field).
+  const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
   const now = new Date();
-  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  // Look back 2 hours — covers breached tickets well beyond the SLA window
+  const start = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
   const end = now.toISOString();
   let issues = [];
   try {
-    const res = await pylon(`/issues?status=open&limit=100&start_time=${start}&end_time=${end}`);
+    const res = await pylon(`/issues?status=open&limit=25&start_time=${start}&end_time=${end}`);
     issues = res.data || res.issues || (Array.isArray(res) ? res : []);
   } catch (e) {
     throw new Error(`Failed to list issues: ${e.message}`);
@@ -67,12 +69,22 @@ export async function listEliteAwaitingFirstResponse() {
 
   const out = [];
   for (const issue of issues) {
-    const full = await pylon(`/issues/${issue.id}`);
-    const detail = full.data || full;
+    let detail;
+    try {
+      const full = await pylon(`/issues/${issue.id}`);
+      detail = full.data || full;
+    } catch (e) {
+      continue;
+    }
     if (detail.first_response_time) continue;
     if (!isEliteP0(detail)) continue;
 
-    const { data: messages = [] } = await pylon(`/issues/${issue.id}/messages`);
+    let messages = [];
+    try {
+      const msgRes = await pylon(`/issues/${issue.id}/messages`);
+      messages = msgRes.data || [];
+    } catch (e) { /* proceed without thread */ }
+
     out.push({
       id: issue.id,
       account: detail.account?.name || "Unknown account",
@@ -80,7 +92,7 @@ export async function listEliteAwaitingFirstResponse() {
       channel: detail.source || issue.channel || "—",
       subject: detail.title || issue.subject || "(no subject)",
       createdAt: detail.created_at || issue.created_at,
-      deadline: new Date(detail.created_at || issue.created_at).getTime() + Number(process.env.SLA_MINUTES || 15) * 60000,
+      deadline: new Date(detail.created_at || issue.created_at).getTime() + slaMs,
       thread: messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
     });
   }
