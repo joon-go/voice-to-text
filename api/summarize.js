@@ -8,10 +8,15 @@ export default async function handler(req, res) {
   if (!issueId) return res.status(400).json({ error: "issueId required" });
 
   try {
-    const { messages } = await getIssueThread(issueId);
-    const transcript = messages
-      .map((m) => `${m.from_customer ? "Customer" : "Agent"}: ${m.body_text || m.body_html || ""}`)
-      .join("\n");
+    const { issue, messages } = await getIssueThread(issueId);
+    const issueDetail = issue.data || issue;
+    const issueBody = issueDetail.body_text || issueDetail.body_html || "";
+    const parts = [];
+    if (issueBody) parts.push(`Customer: ${issueBody}`);
+    for (const m of messages) {
+      parts.push(`${m.from_customer ? "Customer" : "Agent"}: ${m.body_text || m.body_html || ""}`);
+    }
+    const transcript = parts.join("\n");
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

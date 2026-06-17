@@ -134,7 +134,11 @@ export async function listEliteAwaitingFirstResponse() {
       subject: detail.title || issue.subject || "(no subject)",
       createdAt: detail.created_at || issue.created_at,
       deadline: new Date(detail.created_at || issue.created_at).getTime() + slaMs,
-      thread: messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
+      summary: detail.body_text || detail.body_html || "",
+      thread: [
+        ...(detail.body_text || detail.body_html ? [{ from: "customer", body: detail.body_text || detail.body_html }] : []),
+        ...messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
+      ],
     });
   }
   return out.sort((a, b) => a.deadline - b.deadline);
