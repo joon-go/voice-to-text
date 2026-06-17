@@ -147,7 +147,15 @@ export async function listEliteAwaitingFirstResponse() {
 export async function getIssueThread(issueId) {
   const issue = await pylon(`/issues/${issueId}`);
   const { data: messages = [] } = await pylon(`/issues/${issueId}/messages`);
-  return { issue, messages };
+  let singleMsg = null;
+  if (messages.length > 0) {
+    try {
+      singleMsg = await pylon(`/issues/${issueId}/messages/${messages[0].id}`);
+    } catch (e) {
+      singleMsg = { error: e.message };
+    }
+  }
+  return { issue, messages, singleMsg };
 }
 
 // Post the engineer's ORIGINAL first response, authored by them (user_id),

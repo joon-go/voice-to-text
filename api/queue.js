@@ -7,18 +7,21 @@ export default async function handler(req, res) {
       return res.status(200).json(info);
     }
     if (req.query.thread) {
-      const { issue, messages } = await getIssueThread(req.query.thread);
+      const { issue, messages, singleMsg } = await getIssueThread(req.query.thread);
       const detail = issue.data || issue;
       return res.status(200).json({
         issueBody: detail.body_text || detail.body_html || "(empty)",
+        issueAllKeys: Object.keys(detail),
         messageCount: messages.length,
-        messages: messages.map((m) => ({
-          id: m.id,
-          from_customer: m.from_customer,
-          source: m.source,
-          body_text: (m.body_text || "").slice(0, 200),
-          body_html: (m.body_html || "").slice(0, 200),
-        })),
+        singleMessageFetch: singleMsg || null,
+        messages: messages.slice(0, 2).map((m) => {
+          const out = {};
+          for (const [k, v] of Object.entries(m)) {
+            if (typeof v === "string") out[k] = v.slice(0, 300);
+            else out[k] = v;
+          }
+          return out;
+        }),
       });
     }
     const tickets = await listEliteAwaitingFirstResponse();
