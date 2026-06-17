@@ -57,7 +57,7 @@ function isEliteP0(issue) {
 export async function listEliteAwaitingFirstResponse() {
   const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
 
-  const searchBody = { states: ["new"], limit: 50 };
+  const searchBody = { states: ["new"], limit: 100, sort: "created_at", sort_direction: "desc" };
   if (TEAM_ID) searchBody.team_id = TEAM_ID;
 
   let issues = [];
@@ -70,6 +70,10 @@ export async function listEliteAwaitingFirstResponse() {
   } catch (e) {
     throw new Error(`Failed to search issues: ${e.message}`);
   }
+
+  // Only check recent issues (last 24h) to limit API calls
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  issues = issues.filter((i) => new Date(i.created_at).getTime() > cutoff);
 
   const out = [];
   for (const issue of issues) {
@@ -126,34 +130,41 @@ export async function postFirstResponse({ issueId, body, userId }) {
 }
 
 export async function debugQueue() {
-  const searchBody = { states: ["new"], limit: 5 };
+  const searchBody = { states: ["new"], limit: 100, sort: "created_at", sort_direction: "desc" };
   if (TEAM_ID) searchBody.team_id = TEAM_ID;
 
-  let raw, issues = [], samples = [], searchError = null;
+  let raw, issues = [], searchError = null;
   try {
     raw = await pylon(`/issues/search`, { method: "POST", body: JSON.stringify(searchBody) });
     issues = raw.data || raw.issues || (Array.isArray(raw) ? raw : []);
   } catch (e) {
     searchError = e.message;
   }
-  for (const issue of issues.slice(0, 3)) {
+
+  const targetId = "33a6f84b-0031-45b5-b88e-91ebb1e39733";
+  const found = issues.find((i) => i.id === targetId);
+
+  let targetDetail = null;
+  if (found) {
     try {
-      const full = await pylon(`/issues/${issue.id}`);
+      const full = await pylon(`/issues/${targetId}`);
       const d = full.data || full;
-      samples.push({
-        id: d.id, title: d.title,
-        team: d.team?.name, teamId: d.team?.id,
-        tier: d.custom_fields?.support_tier,
+      targetDetail = {
+        id: d.id, title: d.title, state: d.state,
+        team: d.team?.name, tier: d.custom_fields?.support_tier,
         priority: d.custom_fields?.priority,
         first_response_time: d.first_response_time,
         matchesEliteP0: isEliteP0(d),
-      });
-    } catch (e) { samples.push({ id: issue.id, error: e.message }); }
+      };
+    } catch (e) { targetDetail = { error: e.message }; }
   }
+
   return {
     searchBody, searchError, TEAM_ID,
-    issueCount: issues.length,
-    samples,
+    totalReturned: issues.length,
+    ticket22780InList: !!found,
+    ticket22780Detail: targetDetail,
+    firstFiveIds: issues.slice(0, 5).map((i) => ({ id: i.id, title: i.title, created: i.created_at })),
     config: { TIER_SLUG, TIER_VALUE, PRIORITY_SLUG, PRIORITY_VALUE },
   };
 }
