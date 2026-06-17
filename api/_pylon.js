@@ -62,20 +62,21 @@ export async function listEliteAwaitingFirstResponse() {
 
   const out = [];
   for (const issue of elite) {
+    const full = await pylon(`/issues/${issue.id}`);
+    const detail = full.data || full;
+    if (detail.first_response_time) continue;
+
     const { data: messages = [] } = await pylon(`/issues/${issue.id}/messages`);
-    if (needsFirstResponse(messages)) {
-      out.push({
-        id: issue.id,
-        account: issue.account?.name || "Unknown account",
-        customer: issue.requester?.name || issue.contact?.name || "Customer",
-        channel: issue.source || issue.channel || "—",
-        subject: issue.title || issue.subject || "(no subject)",
-        createdAt: issue.created_at,
-        // SLA deadline = created + SLA window (swap for your real SLA policy start if different)
-        deadline: new Date(issue.created_at).getTime() + Number(process.env.SLA_MINUTES || 15) * 60000,
-        thread: messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
-      });
-    }
+    out.push({
+      id: issue.id,
+      account: detail.account?.name || "Unknown account",
+      customer: detail.requester?.name || detail.contact?.name || "Customer",
+      channel: issue.source || issue.channel || "—",
+      subject: issue.title || issue.subject || "(no subject)",
+      createdAt: issue.created_at,
+      deadline: new Date(issue.created_at).getTime() + Number(process.env.SLA_MINUTES || 15) * 60000,
+      thread: messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
+    });
   }
   return out.sort((a, b) => a.deadline - b.deadline);
 }
