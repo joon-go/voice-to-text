@@ -57,24 +57,30 @@ export async function listEliteAwaitingFirstResponse() {
   const now = new Date();
   const start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const end = now.toISOString();
-  const { data: issues = [] } = await pylon(`/issues?status=open&limit=100&start_time=${start}&end_time=${end}`);
-  const elite = issues.filter(isEliteP0);
+  let issues = [];
+  try {
+    const res = await pylon(`/issues?status=open&limit=100&start_time=${start}&end_time=${end}`);
+    issues = res.data || res.issues || (Array.isArray(res) ? res : []);
+  } catch (e) {
+    throw new Error(`Failed to list issues: ${e.message}`);
+  }
 
   const out = [];
-  for (const issue of elite) {
+  for (const issue of issues) {
     const full = await pylon(`/issues/${issue.id}`);
     const detail = full.data || full;
     if (detail.first_response_time) continue;
+    if (!isEliteP0(detail)) continue;
 
     const { data: messages = [] } = await pylon(`/issues/${issue.id}/messages`);
     out.push({
       id: issue.id,
       account: detail.account?.name || "Unknown account",
       customer: detail.requester?.name || detail.contact?.name || "Customer",
-      channel: issue.source || issue.channel || "—",
-      subject: issue.title || issue.subject || "(no subject)",
-      createdAt: issue.created_at,
-      deadline: new Date(issue.created_at).getTime() + Number(process.env.SLA_MINUTES || 15) * 60000,
+      channel: detail.source || issue.channel || "—",
+      subject: detail.title || issue.subject || "(no subject)",
+      createdAt: detail.created_at || issue.created_at,
+      deadline: new Date(detail.created_at || issue.created_at).getTime() + Number(process.env.SLA_MINUTES || 15) * 60000,
       thread: messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
     });
   }
