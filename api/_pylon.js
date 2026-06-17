@@ -100,18 +100,37 @@ export async function listEliteAwaitingFirstResponse() {
       } catch (e) { /* proceed without name */ }
     }
 
+    let requesterName = detail.requester?.name || "";
+    if (!requesterName && detail.requester?.id) {
+      try {
+        const req = await pylon(`/contacts/${detail.requester.id}`);
+        requesterName = (req.data || req).name || "";
+      } catch (e) { /* proceed without name */ }
+    }
+
+    let assigneeName = detail.assignee?.name || "";
+    if (!assigneeName && detail.assignee?.id) {
+      try {
+        const usr = await pylon(`/users/${detail.assignee.id}`);
+        assigneeName = (usr.data || usr).name || "";
+      } catch (e) { /* proceed without name */ }
+    }
+
     let messages = [];
     try {
       const msgRes = await pylon(`/issues/${issue.id}/messages`);
       messages = msgRes.data || [];
     } catch (e) { /* proceed without thread */ }
 
+    const source = (detail.source || issue.channel || "—");
+
     out.push({
       id: issue.id,
       number: detail.number || issue.number,
       account: accountName || "Unknown account",
-      customer: detail.requester?.name || detail.contact?.name || "Customer",
-      channel: detail.source || issue.channel || "—",
+      customer: requesterName || "Customer",
+      assignee: assigneeName || "",
+      channel: source.charAt(0).toUpperCase() + source.slice(1),
       subject: detail.title || issue.subject || "(no subject)",
       createdAt: detail.created_at || issue.created_at,
       deadline: new Date(detail.created_at || issue.created_at).getTime() + slaMs,

@@ -165,8 +165,9 @@ function Ticket({ ticket, me, onBack, onSent }) {
       </div>
       <div className="er-scroll er-ticket">
         <div className="er-meta">
-          <span><Building2 size={13} /> {ticket.account}</span>
-          <span>{ticket.customer} · {ticket.channel}</span>
+          <div>Requester: {ticket.customer}</div>
+          <div>Assignee: {ticket.assignee || "Unassigned"}</div>
+          <div>Source: {ticket.channel}</div>
         </div>
         <div className="er-summary">
           <div className="er-summary-top"><span className="er-summary-tag">Problem</span>
