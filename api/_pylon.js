@@ -5,7 +5,7 @@ const TOKEN = process.env.PYLON_API_TOKEN;
 const TIER_SLUG = process.env.PYLON_TIER_FIELD_SLUG || "support_tier";
 const TIER_VALUE = process.env.PYLON_TIER_VALUE || "Enterprise Elite";
 const PRIORITY_SLUG = process.env.PYLON_PRIORITY_FIELD_SLUG || "priority";
-const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "P0";
+const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "Urgent";
 const BOT_IDS = (process.env.PYLON_BOT_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 function headers() {
@@ -35,10 +35,15 @@ export function needsFirstResponse(messages = []) {
 function fieldMatches(issue, slug, target) {
   const fields = issue.custom_fields || {};
   if (Array.isArray(fields)) {
-    return fields.some((f) => f.slug === slug && (f.value === target || (f.values || []).includes(target)));
+    return fields.some((f) => f.slug === slug && (
+      f.value === target || (f.values || []).includes(target) ||
+      f.interpreted_value === target || (f.interpreted_values || []).includes(target)
+    ));
   }
   const v = fields[slug];
-  return v?.value === target || (v?.values || []).includes(target) || v === target;
+  if (!v || typeof v !== "object") return v === target;
+  return v.value === target || (v.values || []).includes(target) ||
+    v.interpreted_value === target || (v.interpreted_values || []).includes(target);
 }
 
 function isEliteP0(issue) {
