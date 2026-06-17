@@ -51,19 +51,13 @@ function isEliteP0(issue) {
   return fieldMatches(issue, TIER_SLUG, TIER_VALUE) && fieldMatches(issue, PRIORITY_SLUG, PRIORITY_VALUE);
 }
 
-// Open Enterprise Elite Urgent issues still awaiting a first response.
-// Uses server-side filtering to minimize API calls and avoid rate limits.
+// Open Enterprise Elite Urgent issues assigned to the team, still awaiting first response.
+// Pylon REST API doesn't support custom_field_filters, so we fetch issues in small
+// batches and filter locally after fetching full details.
 export async function listEliteAwaitingFirstResponse() {
   const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
 
-  const searchBody = {
-    states: ["new"],
-    custom_field_filters: [
-      { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
-      { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
-    ],
-    limit: 25,
-  };
+  const searchBody = { states: ["new"], limit: 50 };
   if (TEAM_ID) searchBody.team_id = TEAM_ID;
 
   let issues = [];
@@ -79,6 +73,7 @@ export async function listEliteAwaitingFirstResponse() {
 
   const out = [];
   for (const issue of issues) {
+    if (out.length >= 10) break;
     let detail;
     try {
       const full = await pylon(`/issues/${issue.id}`);
@@ -87,6 +82,8 @@ export async function listEliteAwaitingFirstResponse() {
       continue;
     }
     if (detail.first_response_time) continue;
+    if (!isEliteP0(detail)) continue;
+    if (TEAM_ID && detail.team?.id !== TEAM_ID) continue;
 
     let messages = [];
     try {
@@ -129,33 +126,34 @@ export async function postFirstResponse({ issueId, body, userId }) {
 }
 
 export async function debugQueue() {
-  const searchBody = {
-    states: ["new"],
-    custom_field_filters: [
-      { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
-      { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
-    ],
-    limit: 10,
-  };
-  let raw, issues = [], sample = null, searchError = null;
+  const searchBody = { states: ["new"], limit: 5 };
+  if (TEAM_ID) searchBody.team_id = TEAM_ID;
+
+  let raw, issues = [], samples = [], searchError = null;
   try {
     raw = await pylon(`/issues/search`, { method: "POST", body: JSON.stringify(searchBody) });
     issues = raw.data || raw.issues || (Array.isArray(raw) ? raw : []);
   } catch (e) {
     searchError = e.message;
   }
-  if (issues.length > 0) {
+  for (const issue of issues.slice(0, 3)) {
     try {
-      const full = await pylon(`/issues/${issues[0].id}`);
-      sample = full.data || full;
-    } catch (e) { sample = { error: e.message }; }
+      const full = await pylon(`/issues/${issue.id}`);
+      const d = full.data || full;
+      samples.push({
+        id: d.id, title: d.title,
+        team: d.team?.name, teamId: d.team?.id,
+        tier: d.custom_fields?.support_tier,
+        priority: d.custom_fields?.priority,
+        first_response_time: d.first_response_time,
+        matchesEliteP0: isEliteP0(d),
+      });
+    } catch (e) { samples.push({ id: issue.id, error: e.message }); }
   }
   return {
-    searchBody, searchError,
-    rawKeys: raw ? Object.keys(raw) : null,
+    searchBody, searchError, TEAM_ID,
     issueCount: issues.length,
-    issueIds: issues.map((i) => ({ id: i.id, title: i.title, state: i.state })),
-    sampleDetail: sample ? { id: sample.id, custom_fields: sample.custom_fields, first_response_time: sample.first_response_time } : null,
+    samples,
     config: { TIER_SLUG, TIER_VALUE, PRIORITY_SLUG, PRIORITY_VALUE },
   };
 }
