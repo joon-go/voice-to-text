@@ -137,7 +137,7 @@ export async function listEliteAwaitingFirstResponse() {
       summary: detail.body_text || detail.body_html || "",
       thread: [
         ...(detail.body_text || detail.body_html ? [{ from: "customer", body: detail.body_text || detail.body_html }] : []),
-        ...messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html })),
+        ...messages.map((m) => ({ from: m.from_customer ? "customer" : "agent", body: m.body_text || m.body_html || m.message_html || "" })),
       ],
     });
   }
@@ -147,15 +147,7 @@ export async function listEliteAwaitingFirstResponse() {
 export async function getIssueThread(issueId) {
   const issue = await pylon(`/issues/${issueId}`);
   const { data: messages = [] } = await pylon(`/issues/${issueId}/messages`);
-  let singleMsg = null;
-  if (messages.length > 0) {
-    try {
-      singleMsg = await pylon(`/issues/${issueId}/messages/${messages[0].id}`);
-    } catch (e) {
-      singleMsg = { error: e.message };
-    }
-  }
-  return { issue, messages, singleMsg };
+  return { issue, messages };
 }
 
 // Post the engineer's ORIGINAL first response, authored by them (user_id),

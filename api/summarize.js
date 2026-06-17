@@ -14,7 +14,8 @@ export default async function handler(req, res) {
     const parts = [];
     if (issueBody) parts.push(`Customer: ${issueBody}`);
     for (const m of messages) {
-      parts.push(`${m.from_customer ? "Customer" : "Agent"}: ${m.body_text || m.body_html || ""}`);
+      const body = m.body_text || m.body_html || m.message_html || "";
+      if (body) parts.push(`${m.from_customer ? "Customer" : "Agent"}: ${body}`);
     }
     const transcript = parts.join("\n");
 
