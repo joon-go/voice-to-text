@@ -91,8 +91,6 @@ export async function listEliteAwaitingFirstResponse() {
       continue;
     }
     if (detail.first_response_time) continue;
-    if (!isEliteP0(detail)) continue;
-    if (TEAM_ID && detail.team?.id !== TEAM_ID) continue;
 
     let messages = [];
     try {
