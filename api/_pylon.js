@@ -57,7 +57,7 @@ export async function listEliteAwaitingFirstResponse() {
   const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
 
   const searchBody = {
-    states: ["new", "waiting_on_you"],
+    states: ["new"],
     custom_field_filters: [
       { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
       { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
@@ -130,7 +130,7 @@ export async function postFirstResponse({ issueId, body, userId }) {
 
 export async function debugQueue() {
   const searchBody = {
-    states: ["new", "waiting_on_you"],
+    states: ["new"],
     custom_field_filters: [
       { field: TIER_SLUG, operator: "equals", value: TIER_VALUE.toLowerCase().replace(/\s+/g, "_") },
       { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
