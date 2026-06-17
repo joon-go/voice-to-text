@@ -92,6 +92,14 @@ export async function listEliteAwaitingFirstResponse() {
     }
     if (detail.first_response_time) continue;
 
+    let accountName = detail.account?.name || "";
+    if (!accountName && detail.account?.id) {
+      try {
+        const acc = await pylon(`/accounts/${detail.account.id}`);
+        accountName = (acc.data || acc).name || "";
+      } catch (e) { /* proceed without name */ }
+    }
+
     let messages = [];
     try {
       const msgRes = await pylon(`/issues/${issue.id}/messages`);
@@ -100,7 +108,7 @@ export async function listEliteAwaitingFirstResponse() {
 
     out.push({
       id: issue.id,
-      account: detail.account?.name || "Unknown account",
+      account: accountName || "Unknown account",
       customer: detail.requester?.name || detail.contact?.name || "Customer",
       channel: detail.source || issue.channel || "—",
       subject: detail.title || issue.subject || "(no subject)",
