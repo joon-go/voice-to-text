@@ -35,6 +35,6 @@ export default async function handler(req, res) {
     await ackPagerDuty(incidentId);
     res.status(200).json({ ok: true, messageId: message.id });
   } catch (err) {
-    res.status(502).json({ error: "Couldn't post the response to Pylon.", detail: String(err.message || err) });
+    res.status(502).json({ error: `Couldn't post the response to Pylon: ${err.message || err}` });
   }
 }
