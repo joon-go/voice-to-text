@@ -1,7 +1,11 @@
-import { listEliteAwaitingFirstResponse } from "./_pylon.js";
+import { listEliteAwaitingFirstResponse, debugQueue } from "./_pylon.js";
 
 export default async function handler(req, res) {
   try {
+    if (req.query.debug === "1") {
+      const info = await debugQueue();
+      return res.status(200).json(info);
+    }
     const tickets = await listEliteAwaitingFirstResponse();
     res.status(200).json({ tickets });
   } catch (err) {

@@ -118,6 +118,28 @@ export async function postFirstResponse({ issueId, body, userId }) {
   });
 }
 
+export async function debugQueue() {
+  const now = new Date();
+  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const end = now.toISOString();
+  const url = `/issues?status=open&limit=25&start_time=${start}&end_time=${end}`;
+  const raw = await pylon(url);
+  const issues = raw.data || raw.issues || (Array.isArray(raw) ? raw : []);
+  let sample = null;
+  if (issues.length > 0) {
+    const full = await pylon(`/issues/${issues[0].id}`);
+    sample = full.data || full;
+  }
+  return {
+    url, now: now.toISOString(), start, end,
+    rawKeys: Object.keys(raw),
+    issueCount: issues.length,
+    issueIds: issues.map((i) => ({ id: i.id, title: i.title, state: i.state })),
+    sampleDetail: sample ? { id: sample.id, custom_fields: sample.custom_fields, first_response_time: sample.first_response_time } : null,
+    config: { TIER_SLUG, TIER_VALUE, PRIORITY_SLUG, PRIORITY_VALUE },
+  };
+}
+
 export async function listUsers() {
   const { data = [] } = await pylon(`/users`);
   return data.map((u) => ({ id: u.id, name: u.name, email: u.email }));
