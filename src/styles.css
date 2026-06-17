@@ -57,6 +57,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ui);
 .er-crit .er-clock,.er-breach .er-clock{color:var(--crit)}
 .er-safe .er-clock{color:var(--safe)}
 .er-clock-acct{text-align:right;font-size:13px;font-weight:600;line-height:1.3}
+.er-clock-acct a{color:#7eb8ff;text-decoration:none;font-weight:600}
 .er-clock-acct span{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
 .er-ticket{padding:16px}
 .er-meta{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);margin-bottom:14px}
