@@ -100,7 +100,7 @@ function Queue({ tickets, me, onOpen, err }) {
 function Ticket({ ticket, me, onBack, onSent }) {
   const t = useTick();
   const left = Math.round((ticket.deadline - t) / 1000), k = tier(left);
-  const [summary, setSummary] = useState(ticket.summary || "");
+  const [summary, setSummary] = useState("");
   const [text, setText] = useState("");
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);

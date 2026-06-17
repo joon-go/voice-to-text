@@ -10,11 +10,12 @@ export default async function handler(req, res) {
   try {
     const { issue, messages } = await getIssueThread(issueId);
     const issueDetail = issue.data || issue;
-    const issueBody = issueDetail.body_text || issueDetail.body_html || "";
+    const strip = (html) => (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const issueBody = strip(issueDetail.body_text || issueDetail.body_html);
     const parts = [];
     if (issueBody) parts.push(`Customer: ${issueBody}`);
     for (const m of messages) {
-      const body = m.body_text || m.body_html || m.message_html || "";
+      const body = strip(m.body_text || m.body_html || m.message_html);
       if (body) parts.push(`${m.from_customer ? "Customer" : "Agent"}: ${body}`);
     }
     const transcript = parts.join("\n");
