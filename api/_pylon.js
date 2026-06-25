@@ -154,8 +154,8 @@ export async function getIssueThread(issueId) {
 // so the SLA record credits the live person rather than the API token's identity.
 export async function postFirstResponse({ issueId, body, userId }) {
   const { data: messages = [] } = await pylon(`/issues/${issueId}/messages`);
-  const lastMsg = messages[messages.length - 1];
-  if (!lastMsg) throw new Error("No messages found on issue to reply to");
+  const lastMsg = messages.filter((m) => !m.is_private).pop();
+  if (!lastMsg) throw new Error("No public messages found on issue to reply to");
 
   return pylon(`/issues/${issueId}/reply`, {
     method: "POST",
