@@ -19,7 +19,16 @@ export default function App() {
   const [err, setErr] = useState("");
 
   useEffect(() => { api.users().then(setUsers).catch((e) => setErr(String(e.message))); }, []);
-  const load = useCallback(() => { api.queue().then(setTickets).catch((e) => setErr(String(e.message))); }, []);
+  const load = useCallback(() => {
+    api.queue().then((t) => {
+      setTickets(t);
+      if (!openId) {
+        const params = new URLSearchParams(window.location.search);
+        const linked = params.get("issue");
+        if (linked && t.some((x) => x.id === linked)) setOpenId(linked);
+      }
+    }).catch((e) => setErr(String(e.message)));
+  }, [openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
   if (!me) return <SignIn users={users} onPick={setMe} err={err} />;
