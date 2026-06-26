@@ -3,7 +3,7 @@ const BASE = "https://api.usepylon.com";
 
 const TOKEN = process.env.PYLON_API_TOKEN;
 const TIER_SLUG = process.env.PYLON_TIER_FIELD_SLUG || "support_tier";
-const TIER_VALUE = process.env.PYLON_TIER_VALUE || "Enterprise Elite";
+const TIER_VALUES = (process.env.PYLON_TIER_VALUE || "Enterprise Elite").split(",").map((s) => s.trim()).filter(Boolean);
 const PRIORITY_SLUG = process.env.PYLON_PRIORITY_FIELD_SLUG || "priority";
 const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "Urgent";
 const TEAM_ID = process.env.PYLON_TEAM_ID || "";
@@ -59,7 +59,7 @@ export async function listEliteAwaitingFirstResponse() {
 
   const filters = [
     { field: "state", operator: "in", values: ["new"] },
-    { field: TIER_SLUG, operator: "in", values: [TIER_VALUE.toLowerCase().replace(/\s+/g, "_")] },
+    { field: TIER_SLUG, operator: "in", values: TIER_VALUES.map((v) => v.toLowerCase().replace(/\s+/g, "_")) },
     { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
   ];
   if (TEAM_ID) filters.push({ field: "team_id", operator: "equals", value: TEAM_ID });
@@ -170,7 +170,7 @@ export async function postFirstResponse({ issueId, body, userId }) {
 export async function debugQueue() {
   const filters = [
     { field: "state", operator: "in", values: ["new"] },
-    { field: TIER_SLUG, operator: "in", values: [TIER_VALUE.toLowerCase().replace(/\s+/g, "_")] },
+    { field: TIER_SLUG, operator: "in", values: TIER_VALUES.map((v) => v.toLowerCase().replace(/\s+/g, "_")) },
     { field: PRIORITY_SLUG, operator: "equals", value: PRIORITY_VALUE.toLowerCase() },
   ];
   if (TEAM_ID) filters.push({ field: "team_id", operator: "equals", value: TEAM_ID });
@@ -187,7 +187,7 @@ export async function debugQueue() {
     searchBody, searchError, TEAM_ID,
     issueCount: issues.length,
     issues: issues.map((i) => ({ id: i.id, number: i.number, title: i.title, state: i.state })),
-    config: { TIER_SLUG, TIER_VALUE, PRIORITY_SLUG, PRIORITY_VALUE },
+    config: { TIER_SLUG, TIER_VALUES, PRIORITY_SLUG, PRIORITY_VALUE },
   };
 }
 
