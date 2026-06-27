@@ -11,7 +11,11 @@ export default async function handler(req, res) {
 
   let payload;
   try {
-    const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    const resp = await fetch("https://oauth2.googleapis.com/tokeninfo", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `id_token=${encodeURIComponent(credential)}`,
+    });
     if (!resp.ok) throw new Error("Invalid token");
     payload = await resp.json();
   } catch (e) {
@@ -23,7 +27,7 @@ export default async function handler(req, res) {
   }
 
   const email = payload.email;
-  if (!email || !payload.email_verified) {
+  if (!email || payload.email_verified !== "true") {
     return res.status(401).json({ error: "Email not verified" });
   }
 
@@ -34,7 +38,7 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: "Couldn't load Pylon users" });
   }
 
-  const pylonUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const pylonUser = users.find((u) => u.email && u.email.toLowerCase() === email.toLowerCase());
   if (!pylonUser) {
     return res.status(403).json({ error: `${email} is not on the support team` });
   }

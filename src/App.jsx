@@ -15,12 +15,30 @@ const MOCK = import.meta.env.VITE_USE_MOCK === "true";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function App() {
-  const [me, setMe] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem("fr_user")); } catch { return null; }
-  });
+  const [me, setMe] = useState(null);
+  const [validating, setValidating] = useState(true);
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
+
+  // Validate cached user against server on mount
+  useEffect(() => {
+    if (MOCK) {
+      setValidating(false);
+      return;
+    }
+    const cached = (() => {
+      try { return JSON.parse(sessionStorage.getItem("fr_user")); } catch { return null; }
+    })();
+    if (!cached) {
+      setValidating(false);
+      return;
+    }
+    // In a production app, validate the cached user against a server session/token here.
+    // For now, we clear the cache and require re-authentication to prevent sessionStorage tampering.
+    sessionStorage.removeItem("fr_user");
+    setValidating(false);
+  }, []);
 
   const handleAuth = useCallback(async (user) => {
     sessionStorage.setItem("fr_user", JSON.stringify(user));
@@ -39,6 +57,7 @@ export default function App() {
   }, [openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
+  if (validating) return null;
   if (!me) return <SignIn onAuth={handleAuth} />;
 
   const signOut = () => { sessionStorage.removeItem("fr_user"); setMe(null); };
@@ -57,11 +76,31 @@ export default function App() {
 function SignIn({ onAuth }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [gisReady, setGisReady] = useState(false);
   const btnRef = useRef(null);
 
   useEffect(() => {
     if (MOCK) { api.googleAuth(null).then(onAuth); return; }
-    if (!window.google || !GOOGLE_CLIENT_ID) return;
+
+    if (!GOOGLE_CLIENT_ID) {
+      setErr("VITE_GOOGLE_CLIENT_ID not configured");
+      return;
+    }
+
+    // Wait for Google Identity Services to load
+    const checkGIS = () => {
+      if (window.google?.accounts?.id) {
+        setGisReady(true);
+      } else {
+        setTimeout(checkGIS, 100);
+      }
+    };
+    checkGIS();
+  }, [onAuth]);
+
+  useEffect(() => {
+    if (!gisReady || MOCK) return;
+
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: async (response) => {
@@ -72,12 +111,13 @@ function SignIn({ onAuth }) {
         } catch (e) { setErr(String(e.message)); setBusy(false); }
       },
     });
+
     if (btnRef.current) {
       window.google.accounts.id.renderButton(btnRef.current, {
         theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", width: 280,
       });
     }
-  }, [onAuth]);
+  }, [gisReady, onAuth]);
 
   return (
     <div className="er-root er-signin">
