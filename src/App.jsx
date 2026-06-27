@@ -11,14 +11,40 @@ const fmt = (s) => `${pad(Math.floor(Math.max(0, s) / 60))}:${pad(Math.max(0, s)
 const tier = (s) => (s <= 0 ? "breach" : s < CRIT ? "crit" : s < WARN ? "warn" : "safe");
 const useTick = () => { const [, s] = useState(0); useEffect(() => { const t = setInterval(() => s((n) => n + 1), 1000); return () => clearInterval(t); }, []); return Date.now(); };
 
+const MOCK = import.meta.env.VITE_USE_MOCK === "true";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 export default function App() {
   const [me, setMe] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [validating, setValidating] = useState(true);
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
 
-  useEffect(() => { api.users().then(setUsers).catch((e) => setErr(String(e.message))); }, []);
+  // Validate cached user against server on mount
+  useEffect(() => {
+    if (MOCK) {
+      setValidating(false);
+      return;
+    }
+    const cached = (() => {
+      try { return JSON.parse(sessionStorage.getItem("fr_user")); } catch { return null; }
+    })();
+    if (!cached) {
+      setValidating(false);
+      return;
+    }
+    // In a production app, validate the cached user against a server session/token here.
+    // For now, we clear the cache and require re-authentication to prevent sessionStorage tampering.
+    sessionStorage.removeItem("fr_user");
+    setValidating(false);
+  }, []);
+
+  const handleAuth = useCallback(async (user) => {
+    sessionStorage.setItem("fr_user", JSON.stringify(user));
+    setMe(user);
+  }, []);
+
   const load = useCallback(() => {
     api.queue().then((t) => {
       setTickets(t);
@@ -31,8 +57,10 @@ export default function App() {
   }, [openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
-  if (!me) return <SignIn users={users} onPick={setMe} err={err} />;
+  if (validating) return null;
+  if (!me) return <SignIn onAuth={handleAuth} />;
 
+  const signOut = () => { sessionStorage.removeItem("fr_user"); setMe(null); };
   const open = tickets.find((x) => x.id === openId) || null;
   const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
 
@@ -40,29 +68,69 @@ export default function App() {
     <div className="er-root">
       {open
         ? <Ticket ticket={open} me={me} onBack={() => { setOpenId(null); load(); }} onSent={markSent} />
-        : <Queue tickets={tickets} me={me} onOpen={setOpenId} err={err} />}
+        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} />}
     </div>
   );
 }
 
-function SignIn({ users, onPick, err }) {
+function SignIn({ onAuth }) {
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [gisReady, setGisReady] = useState(false);
+  const btnRef = useRef(null);
+
+  useEffect(() => {
+    if (MOCK) { api.googleAuth(null).then(onAuth); return; }
+
+    if (!GOOGLE_CLIENT_ID) {
+      setErr("VITE_GOOGLE_CLIENT_ID not configured");
+      return;
+    }
+
+    // Wait for Google Identity Services to load
+    const checkGIS = () => {
+      if (window.google?.accounts?.id) {
+        setGisReady(true);
+      } else {
+        setTimeout(checkGIS, 100);
+      }
+    };
+    checkGIS();
+  }, [onAuth]);
+
+  useEffect(() => {
+    if (!gisReady || MOCK) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        setBusy(true); setErr("");
+        try {
+          const result = await api.googleAuth(response.credential);
+          onAuth(result.user);
+        } catch (e) { setErr(String(e.message)); setBusy(false); }
+      },
+    });
+
+    if (btnRef.current) {
+      window.google.accounts.id.renderButton(btnRef.current, {
+        theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", width: 280,
+      });
+    }
+  }, [gisReady, onAuth]);
+
   return (
     <div className="er-root er-signin">
       <Radio size={26} />
       <h1>First Response</h1>
-      <p>Enterprise Elite · responses are posted as you</p>
+      <p>Enterprise Elite · sign in to respond as you</p>
       {err && <div className="er-err">{err}</div>}
-      <div className="er-userlist">
-        {users.map((u) => (
-          <button key={u.id} className="er-btn er-btn-ghost" onClick={() => onPick(u)}>{u.name}</button>
-        ))}
-        {users.length === 0 && !err && <span className="er-words">Loading roster…</span>}
-      </div>
+      {busy ? <span className="er-words">Verifying…</span> : <div ref={btnRef} className="er-google-btn" />}
     </div>
   );
 }
 
-function Queue({ tickets, me, onOpen, err }) {
+function Queue({ tickets, me, onOpen, onSignOut, err }) {
   const t = useTick();
   const pending = tickets.filter((x) => !x.sentAt).sort((a, b) => a.deadline - b.deadline);
   const done = tickets.filter((x) => x.sentAt);
@@ -70,7 +138,7 @@ function Queue({ tickets, me, onOpen, err }) {
     <>
       <header className="er-top">
         <div className="er-eyebrow"><Radio size={13} /> Enterprise Elite · first response</div>
-        <div className="er-id"><span className="er-avatar">{initials(me.name)}</span><span>{me.name}</span></div>
+        <button className="er-id" onClick={onSignOut} title="Sign out"><span className="er-avatar">{initials(me.name)}</span><span>{me.name}</span></button>
       </header>
       <div className="er-scroll">
         {err && <div className="er-err">{err}</div>}
