@@ -33,25 +33,7 @@ export function needsFirstResponse(messages = []) {
   );
 }
 
-function fieldMatches(issue, slug, target) {
-  const fields = issue.custom_fields || {};
-  if (Array.isArray(fields)) {
-    return fields.some((f) => f.slug === slug && (
-      f.value === target || (f.values || []).includes(target) ||
-      f.interpreted_value === target || (f.interpreted_values || []).includes(target)
-    ));
-  }
-  const v = fields[slug];
-  if (!v || typeof v !== "object") return v === target;
-  return v.value === target || (v.values || []).includes(target) ||
-    v.interpreted_value === target || (v.interpreted_values || []).includes(target);
-}
-
-function isEliteP0(issue) {
-  return fieldMatches(issue, TIER_SLUG, TIER_VALUE) && fieldMatches(issue, PRIORITY_SLUG, PRIORITY_VALUE);
-}
-
-// Open Enterprise Elite Urgent issues assigned to the team, still awaiting first response.
+// Open Enterprise Elite / Pinnacle Urgent issues assigned to the team, still awaiting first response.
 // Pylon REST API doesn't support custom_field_filters, so we fetch issues in small
 // batches and filter locally after fetching full details.
 export async function listEliteAwaitingFirstResponse() {
