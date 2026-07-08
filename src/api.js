@@ -27,9 +27,9 @@ async function post(path, body) {
 }
 
 export const api = {
-  async users() {
-    if (MOCK) return MOCK_USERS;
-    return (await get("/api/me")).users;
+  async googleAuth(credential) {
+    if (MOCK) return { user: MOCK_USERS[0], email: MOCK_USERS[0].email, name: MOCK_USERS[0].name };
+    return post("/api/auth", { credential });
   },
   async queue() {
     if (MOCK) return MOCK_TICKETS;
