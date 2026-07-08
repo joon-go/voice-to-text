@@ -21,27 +21,12 @@ export default function App() {
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
 
-  // Validate cached user against server on mount
+  // No server-side session validation available, so no cached session
   useEffect(() => {
-    if (MOCK) {
-      setValidating(false);
-      return;
-    }
-    const cached = (() => {
-      try { return JSON.parse(sessionStorage.getItem("fr_user")); } catch { return null; }
-    })();
-    if (!cached) {
-      setValidating(false);
-      return;
-    }
-    // In a production app, validate the cached user against a server session/token here.
-    // For now, we clear the cache and require re-authentication to prevent sessionStorage tampering.
-    sessionStorage.removeItem("fr_user");
     setValidating(false);
   }, []);
 
   const handleAuth = useCallback(async (user) => {
-    sessionStorage.setItem("fr_user", JSON.stringify(user));
     setMe(user);
   }, []);
 
@@ -60,7 +45,7 @@ export default function App() {
   if (validating) return null;
   if (!me) return <SignIn onAuth={handleAuth} />;
 
-  const signOut = () => { sessionStorage.removeItem("fr_user"); setMe(null); };
+  const signOut = () => { setMe(null); };
   const open = tickets.find((x) => x.id === openId) || null;
   const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
 
@@ -78,6 +63,7 @@ function SignIn({ onAuth }) {
   const [busy, setBusy] = useState(false);
   const [gisReady, setGisReady] = useState(false);
   const btnRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
     if (MOCK) { api.googleAuth(null).then(onAuth); return; }
@@ -87,15 +73,23 @@ function SignIn({ onAuth }) {
       return;
     }
 
-    // Wait for Google Identity Services to load
+    // Wait for Google Identity Services to load (max 10 seconds)
+    let elapsed = 0;
     const checkGIS = () => {
       if (window.google?.accounts?.id) {
         setGisReady(true);
+      } else if (elapsed >= 10000) {
+        setErr("Google Sign-In failed to load. Please refresh the page.");
       } else {
-        setTimeout(checkGIS, 100);
+        elapsed += 100;
+        timeoutRef.current = setTimeout(checkGIS, 100);
       }
     };
     checkGIS();
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [onAuth]);
 
   useEffect(() => {
