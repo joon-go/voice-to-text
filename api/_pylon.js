@@ -135,17 +135,29 @@ export async function getIssueThread(issueId) {
 // Post the engineer's ORIGINAL first response, authored by them (user_id),
 // so the SLA record credits the live person rather than the API token's identity.
 export async function postFirstResponse({ issueId, body, userId }) {
-  const { data: messages = [] } = await pylon(`/issues/${issueId}/messages`);
+  const [{ data: messages = [] }, issueRes] = await Promise.all([
+    pylon(`/issues/${issueId}/messages`),
+    pylon(`/issues/${issueId}`),
+  ]);
   const lastMsg = messages.filter((m) => !m.is_private).pop();
   if (!lastMsg) throw new Error("No public messages found on issue to reply to");
 
+  const issue = issueRes.data || issueRes;
+  const replyBody = {
+    body_html: body,
+    message_id: lastMsg.id,
+    user_id: userId,
+  };
+
+  if (issue.source === "email") {
+    const requesterEmail = issue.requester?.email;
+    if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
+    replyBody.to = [requesterEmail];
+  }
+
   return pylon(`/issues/${issueId}/reply`, {
     method: "POST",
-    body: JSON.stringify({
-      body_html: body,
-      message_id: lastMsg.id,
-      user_id: userId,
-    }),
+    body: JSON.stringify(replyBody),
   });
 }
 
