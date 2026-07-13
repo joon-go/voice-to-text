@@ -151,9 +151,7 @@ export async function postFirstResponse({ issueId, body, userId }) {
 
   if (issue.source === "email") {
     const requesterEmail = issue.requester?.email;
-    if (!requesterEmail) {
-      throw new Error(`Cannot reply to email-sourced issue ${issueId}: requester email is missing`);
-    }
+    if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
     replyBody.to = [requesterEmail];
   }
 
