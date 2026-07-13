@@ -15,18 +15,15 @@ const MOCK = import.meta.env.VITE_USE_MOCK === "true";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function App() {
-  const [me, setMe] = useState(null);
-  const [validating, setValidating] = useState(true);
+  const [me, setMe] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fr_user")); } catch { return null; }
+  });
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
 
-  // No server-side session validation available, so no cached session
-  useEffect(() => {
-    setValidating(false);
-  }, []);
-
   const handleAuth = useCallback(async (user) => {
+    localStorage.setItem("fr_user", JSON.stringify(user));
     setMe(user);
   }, []);
 
@@ -42,10 +39,9 @@ export default function App() {
   }, [openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
-  if (validating) return null;
   if (!me) return <SignIn onAuth={handleAuth} />;
 
-  const signOut = () => { setMe(null); };
+  const signOut = () => { localStorage.removeItem("fr_user"); setMe(null); };
   const open = tickets.find((x) => x.id === openId) || null;
   const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
 
