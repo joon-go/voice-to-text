@@ -1,4 +1,4 @@
-import { postFirstResponse } from "./_pylon.js";
+import { postFirstResponse, listUsers } from "./_pylon.js";
 
 // Guard against an empty/templated post slipping through — the first response
 // must be original content the engineer wrote (requirement: from the live person).
@@ -29,6 +29,17 @@ export default async function handler(req, res) {
 
   if (!issueId || !userId) return res.status(400).json({ error: "issueId and userId required" });
   if (!looksOriginal(body)) return res.status(422).json({ error: "First response must be original text you wrote." });
+
+  // Validate that userId corresponds to a real Pylon user before posting
+  try {
+    const users = await listUsers();
+    const validUser = users.some((u) => u.id === userId);
+    if (!validUser) {
+      return res.status(403).json({ error: "Invalid user identity" });
+    }
+  } catch (err) {
+    return res.status(502).json({ error: "Couldn't validate user identity" });
+  }
 
   try {
     const message = await postFirstResponse({ issueId, body, userId });

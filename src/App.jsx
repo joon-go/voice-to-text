@@ -17,21 +17,18 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SESSION_MAX_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default function App() {
-  const [me, setMe] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("fr_user"));
-      if (!stored) return null;
-      const age = Date.now() - (stored._loginAt || 0);
-      if (age > SESSION_MAX_MS) { localStorage.removeItem("fr_user"); return null; }
-      return stored;
-    } catch { return null; }
-  });
+  const [me, setMe] = useState(null);
+  const [validating, setValidating] = useState(true);
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
 
   const handleAuth = useCallback(async (user) => {
-    localStorage.setItem("fr_user", JSON.stringify({ ...user, _loginAt: Date.now() }));
+    try {
+      localStorage.setItem("fr_user", JSON.stringify({ ...user, _loginAt: Date.now() }));
+    } catch (e) {
+      console.warn("Failed to persist auth to localStorage:", e);
+    }
     setMe(user);
   }, []);
 
@@ -47,9 +44,57 @@ export default function App() {
   }, [openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
+  // Validate stored identity on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("fr_user"));
+        if (!stored) { setValidating(false); return; }
+        const age = Date.now() - (stored._loginAt || 0);
+        if (age > SESSION_MAX_MS) {
+          try { localStorage.removeItem("fr_user"); } catch {}
+          setValidating(false);
+          return;
+        }
+        // Validate the stored user still exists on the server
+        const validated = await api.validateUser(stored.id);
+        if (validated) {
+          setMe(stored);
+        } else {
+          try { localStorage.removeItem("fr_user"); } catch {}
+        }
+      } catch (e) {
+        console.warn("Session validation failed:", e);
+        try { localStorage.removeItem("fr_user"); } catch {}
+      } finally {
+        setValidating(false);
+      }
+    };
+    validateSession();
+  }, []);
+
+  // Listen for sign-out in other tabs
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === "fr_user" && e.newValue === null) {
+        setMe(null);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  if (validating) return <div className="er-root er-signin"><Radio size={26} /><h1>First Response</h1><p className="er-words">Validating session…</p></div>;
   if (!me) return <SignIn onAuth={handleAuth} />;
 
-  const signOut = () => { localStorage.removeItem("fr_user"); setMe(null); };
+  const signOut = () => {
+    try {
+      localStorage.removeItem("fr_user");
+    } catch (e) {
+      console.warn("Failed to remove fr_user from localStorage:", e);
+    }
+    setMe(null);
+  };
   const open = tickets.find((x) => x.id === openId) || null;
   const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
 
