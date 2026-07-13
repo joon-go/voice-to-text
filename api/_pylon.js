@@ -151,9 +151,10 @@ export async function postFirstResponse({ issueId, body, userId }) {
 
   if (issue.source === "email") {
     const requesterEmail = issue.requester?.email;
-    if (requesterEmail) {
-      replyBody.to = [requesterEmail];
+    if (!requesterEmail) {
+      throw new Error(`Cannot reply to email-sourced issue ${issueId}: requester email is missing`);
     }
+    replyBody.to = [requesterEmail];
   }
 
   return pylon(`/issues/${issueId}/reply`, {
