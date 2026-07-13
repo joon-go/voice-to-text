@@ -24,12 +24,9 @@ export default function App() {
   const [err, setErr] = useState("");
 
   const handleAuth = useCallback(async (user) => {
-    try {
-      localStorage.setItem("fr_user", JSON.stringify({ ...user, _loginAt: Date.now() }));
-    } catch (e) {
-      console.warn("Failed to persist auth to localStorage:", e);
-    }
-    setMe(user);
+    const persisted = { ...user, _loginAt: Date.now() };
+    try { localStorage.setItem("fr_user", JSON.stringify(persisted)); } catch {}
+    setMe(persisted);
   }, []);
 
   const load = useCallback(() => {
