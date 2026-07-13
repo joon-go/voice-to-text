@@ -35,7 +35,10 @@ export default function App() {
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
-        if (linked && t.some((x) => x.id === linked)) setOpenId(linked);
+        if (linked && t.some((x) => x.id === linked)) {
+          setOpenId(linked);
+          window.history.replaceState({}, "", window.location.pathname);
+        }
       }
     }).catch((e) => setErr(String(e.message)));
   }, [openId]);
