@@ -31,6 +31,10 @@ export const api = {
     if (MOCK) return { user: MOCK_USERS[0], email: MOCK_USERS[0].email, name: MOCK_USERS[0].name };
     return post("/api/auth", { credential });
   },
+  async validateUser(userId) {
+    if (MOCK) return true;
+    return (await post("/api/validate-user", { userId })).valid;
+  },
   async queue() {
     if (MOCK) return MOCK_TICKETS;
     return (await get("/api/queue")).tickets;
