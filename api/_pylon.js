@@ -150,7 +150,13 @@ export async function postFirstResponse({ issueId, body, userId }) {
   };
 
   if (issue.source === "email") {
-    const requesterEmail = issue.requester?.email;
+    let requesterEmail = issue.requester?.email;
+    if (!requesterEmail && issue.requester?.id) {
+      try {
+        const contact = await pylon(`/contacts/${issue.requester.id}`);
+        requesterEmail = (contact.data || contact).email;
+      } catch {}
+    }
     if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
     replyBody.to = [requesterEmail];
   }
