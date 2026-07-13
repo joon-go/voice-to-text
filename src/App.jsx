@@ -14,16 +14,24 @@ const useTick = () => { const [, s] = useState(0); useEffect(() => { const t = s
 const MOCK = import.meta.env.VITE_USE_MOCK === "true";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+const SESSION_MAX_MS = 30 * 24 * 60 * 60 * 1000;
+
 export default function App() {
   const [me, setMe] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("fr_user")); } catch { return null; }
+    try {
+      const stored = JSON.parse(localStorage.getItem("fr_user"));
+      if (!stored) return null;
+      const age = Date.now() - (stored._loginAt || 0);
+      if (age > SESSION_MAX_MS) { localStorage.removeItem("fr_user"); return null; }
+      return stored;
+    } catch { return null; }
   });
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
 
   const handleAuth = useCallback(async (user) => {
-    localStorage.setItem("fr_user", JSON.stringify(user));
+    localStorage.setItem("fr_user", JSON.stringify({ ...user, _loginAt: Date.now() }));
     setMe(user);
   }, []);
 
