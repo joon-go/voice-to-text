@@ -31,13 +31,15 @@ export default function App() {
     setMe(persisted);
   }, []);
 
+  const getSentMap = () => {
+    try { return new Map(Object.entries(JSON.parse(localStorage.getItem("fr_sent") || "{}"))); } catch { return new Map(); }
+  };
+
   const load = useCallback(() => {
     api.queue().then((t) => {
-      setTickets((prev) => {
-        const sent = new Map(prev.filter((x) => x.sentAt).map((x) => [x.id, x]));
-        const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
-        return merged;
-      });
+      const sent = getSentMap();
+      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
+      setTickets(merged);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
@@ -102,7 +104,15 @@ export default function App() {
     setMe(null);
   };
   const open = tickets.find((x) => x.id === openId) || null;
-  const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
+  const markSent = (id, left) => {
+    const entry = { sentAt: Date.now(), savedWith: left };
+    try {
+      const stored = JSON.parse(localStorage.getItem("fr_sent") || "{}");
+      stored[id] = entry;
+      localStorage.setItem("fr_sent", JSON.stringify(stored));
+    } catch {}
+    setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
+  };
 
   return (
     <div className="er-root">
