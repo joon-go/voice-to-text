@@ -74,6 +74,14 @@ export async function listEliteAwaitingFirstResponse() {
     }
     if (detail.first_response_time) continue;
 
+    let messages = [];
+    try {
+      const msgRes = await pylon(`/issues/${issue.id}/messages`);
+      messages = msgRes.data || [];
+    } catch (e) { /* proceed without thread */ }
+
+    if (!needsFirstResponse(messages)) continue;
+
     let accountName = detail.account?.name || "";
     if (!accountName && detail.account?.id) {
       try {
@@ -96,13 +104,6 @@ export async function listEliteAwaitingFirstResponse() {
         const usr = await pylon(`/users/${detail.assignee.id}`);
         assigneeName = (usr.data || usr).name || "";
       } catch (e) { /* proceed without name */ }
-    }
-
-    let messages = [];
-    try {
-      const msgRes = await pylon(`/issues/${issue.id}/messages`);
-      messages = msgRes.data || [];
-    } catch (e) { /* proceed without thread */ }
 
     const source = (detail.source || issue.channel || "—");
 
