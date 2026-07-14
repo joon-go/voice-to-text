@@ -168,7 +168,7 @@ export async function postFirstResponse({ issueId, body, userId }) {
       }
     }
     if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
-    replyBody.to = [requesterEmail];
+    replyBody.to_emails = [requesterEmail];
 
     return pylon(`/issues/${issueId}/reply`, {
       method: "POST",
