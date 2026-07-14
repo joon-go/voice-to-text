@@ -78,7 +78,9 @@ export async function listEliteAwaitingFirstResponse() {
     try {
       const msgRes = await pylon(`/issues/${issue.id}/messages`);
       messages = msgRes.data || [];
-    } catch (e) { /* proceed without thread */ }
+    } catch (e) {
+      continue; // skip issue if messages fetch fails
+    }
 
     if (!needsFirstResponse(messages)) continue;
 
@@ -104,6 +106,7 @@ export async function listEliteAwaitingFirstResponse() {
         const usr = await pylon(`/users/${detail.assignee.id}`);
         assigneeName = (usr.data || usr).name || "";
       } catch (e) { /* proceed without name */ }
+    }
 
     const source = (detail.source || issue.channel || "—");
 
