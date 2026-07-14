@@ -31,13 +31,13 @@ export default function App() {
     setMe(persisted);
   }, []);
 
-  const getSentMap = () => {
-    try { return new Map(Object.entries(JSON.parse(localStorage.getItem("fr_sent") || "{}"))); } catch { return new Map(); }
+  const getSentMap = (userId) => {
+    try { return new Map(Object.entries(JSON.parse(localStorage.getItem(`fr_sent:${userId}`) || "{}"))); } catch { return new Map(); }
   };
 
   const load = useCallback(() => {
     api.queue().then((t) => {
-      const sent = getSentMap();
+      const sent = getSentMap(me.id);
       const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
       setTickets(merged);
       if (!openId) {
@@ -49,7 +49,7 @@ export default function App() {
         }
       }
     }).catch((e) => setErr(String(e.message)));
-  }, [openId]);
+  }, [me?.id, openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
   // Validate stored identity on mount
@@ -108,9 +108,9 @@ export default function App() {
     const entry = { sentAt: Date.now(), savedWith: left };
     try {
       // Re-read immediately before write to avoid overwriting concurrent tab changes
-      const stored = JSON.parse(localStorage.getItem("fr_sent") || "{}");
+      const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
       stored[id] = entry;
-      localStorage.setItem("fr_sent", JSON.stringify(stored));
+      localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored));
       // Only update state after successful persistence
       setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
     } catch (e) {
