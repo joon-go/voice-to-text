@@ -107,11 +107,15 @@ export default function App() {
   const markSent = (id, left) => {
     const entry = { sentAt: Date.now(), savedWith: left };
     try {
+      // Re-read immediately before write to avoid overwriting concurrent tab changes
       const stored = JSON.parse(localStorage.getItem("fr_sent") || "{}");
       stored[id] = entry;
       localStorage.setItem("fr_sent", JSON.stringify(stored));
-    } catch {}
-    setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
+      // Only update state after successful persistence
+      setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
+    } catch (e) {
+      console.error("Failed to persist sent status:", e);
+    }
   };
 
   return (
