@@ -39,7 +39,11 @@ export default function App() {
     api.queue().then((t) => {
       const sent = getSentMap(me?.id);
       const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
-      setTickets(merged);
+      // Union completed ticket snapshots from localStorage with fresh API tickets
+      const completedSnapshots = Array.from(sent.entries())
+        .filter(([id, data]) => data.ticket && !t.some((x) => x.id === id))
+        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith }));
+      setTickets([...merged, ...completedSnapshots]);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
@@ -109,7 +113,8 @@ export default function App() {
     try {
       // Re-read immediately before write to avoid overwriting concurrent tab changes
       const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
-      stored[id] = entry;
+      const ticket = tickets.find((x) => x.id === id);
+      stored[id] = { ...entry, ticket };
       localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored));
       // Only update state after successful persistence
       setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
@@ -232,7 +237,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
           })}
         </>}
         {tab === "archive" && <>
-          {done.length === 0 && (
+          {done.length === 0 && !err && (
             <div className="er-empty"><CheckCircle2 size={28} /><p>No completed responses yet.</p></div>
           )}
           {done.map((x) => {
