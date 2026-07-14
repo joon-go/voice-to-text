@@ -149,8 +149,14 @@ export async function postFirstResponse({ issueId, body, userId }) {
     user_id: userId,
   };
 
-  const isEmail = /email/i.test(issue.source || "") || /email/i.test(lastMsg.channel || "");
-  if (isEmail) {
+  try {
+    return await pylon(`/issues/${issueId}/reply`, {
+      method: "POST",
+      body: JSON.stringify(replyBody),
+    });
+  } catch (err) {
+    if (!/no email recipients/i.test(err.message)) throw err;
+
     let requesterEmail = issue.requester?.email;
     if (!requesterEmail && issue.requester?.id) {
       for (const endpoint of [`/contacts/${issue.requester.id}`, `/users/${issue.requester.id}`]) {
@@ -163,12 +169,12 @@ export async function postFirstResponse({ issueId, body, userId }) {
     }
     if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
     replyBody.to = [requesterEmail];
-  }
 
-  return pylon(`/issues/${issueId}/reply`, {
-    method: "POST",
-    body: JSON.stringify(replyBody),
-  });
+    return pylon(`/issues/${issueId}/reply`, {
+      method: "POST",
+      body: JSON.stringify(replyBody),
+    });
+  }
 }
 
 export async function debugQueue() {
