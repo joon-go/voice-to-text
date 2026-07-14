@@ -149,13 +149,17 @@ export async function postFirstResponse({ issueId, body, userId }) {
     user_id: userId,
   };
 
-  if (issue.source === "email") {
+  const isEmail = /email/i.test(issue.source || "") || /email/i.test(lastMsg.channel || "");
+  if (isEmail) {
     let requesterEmail = issue.requester?.email;
     if (!requesterEmail && issue.requester?.id) {
-      try {
-        const contact = await pylon(`/contacts/${issue.requester.id}`);
-        requesterEmail = (contact.data || contact).email;
-      } catch {}
+      for (const endpoint of [`/contacts/${issue.requester.id}`, `/users/${issue.requester.id}`]) {
+        try {
+          const res = await pylon(endpoint);
+          requesterEmail = (res.data || res).email;
+          if (requesterEmail) break;
+        } catch {}
+      }
     }
     if (!requesterEmail) throw new Error("Email issue has no requester email — cannot send reply");
     replyBody.to = [requesterEmail];
