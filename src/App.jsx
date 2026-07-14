@@ -37,7 +37,7 @@ export default function App() {
 
   const load = useCallback(() => {
     api.queue().then((t) => {
-      const sent = getSentMap(me.id);
+      const sent = getSentMap(me?.id);
       const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
       setTickets(merged);
       if (!openId) {
@@ -233,15 +233,21 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
         </>}
         {tab === "archive" && <>
           {done.length === 0 && (
-            <div className="er-empty"><CheckCircle2 size={28} /><p>No archived responses yet.</p></div>
+            <div className="er-empty"><CheckCircle2 size={28} /><p>No completed responses yet.</p></div>
           )}
-          {done.map((x) => (
-            <div key={x.id} className="er-card er-card-done">
-              <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
-                <span className="er-chip er-safe"><CheckCircle2 size={13} />{x.savedWith > 0 ? `${fmt(x.savedWith)} to spare` : "Breached"}</span></div>
-              <div className="er-subj er-muted">{x.subject}</div>
-            </div>
-          ))}
+          {done.map((x) => {
+            const breached = x.savedWith <= 0;
+            const responseMs = x.sentAt - new Date(x.createdAt).getTime();
+            const responseMin = Math.max(1, Math.round(responseMs / 60000));
+            return (
+              <a key={x.id} className="er-card er-card-done" href={`https://app.usepylon.com/support/issues/views/all-issues?issueNumber=${x.number || ""}&view=fs`} target="_blank" rel="noopener noreferrer">
+                <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
+                  <span className={`er-chip ${breached ? "er-crit" : "er-safe"}`}>{breached ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}{breached ? "Breached" : "On time"}</span></div>
+                <div className="er-subj er-muted">{x.subject}</div>
+                <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
+              </a>
+            );
+          })}
         </>}
       </div>
     </>
