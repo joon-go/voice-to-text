@@ -206,7 +206,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
       </header>
       <div className="er-tabs">
         <button className={`er-tab ${tab === "pending" ? "er-tab-on" : ""}`} onClick={() => setTab("pending")}>Pending{pending.length > 0 && ` (${pending.length})`}</button>
-        <button className={`er-tab ${tab === "archive" ? "er-tab-on" : ""}`} onClick={() => setTab("archive")}>Archive{done.length > 0 && ` (${done.length})`}</button>
+        <button className={`er-tab ${tab === "archive" ? "er-tab-on" : ""}`} onClick={() => setTab("archive")}>Completed{done.length > 0 && ` (${done.length})`}</button>
       </div>
       <div className="er-scroll">
         {err && <div className="er-err">{err}</div>}
