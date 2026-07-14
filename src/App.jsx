@@ -31,9 +31,15 @@ export default function App() {
     setMe(persisted);
   }, []);
 
+  const getSentMap = (userId) => {
+    try { return new Map(Object.entries(JSON.parse(localStorage.getItem(`fr_sent:${userId}`) || "{}"))); } catch { return new Map(); }
+  };
+
   const load = useCallback(() => {
     api.queue().then((t) => {
-      setTickets(t);
+      const sent = getSentMap(me.id);
+      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
+      setTickets(merged);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
@@ -43,7 +49,7 @@ export default function App() {
         }
       }
     }).catch((e) => setErr(String(e.message)));
-  }, [openId]);
+  }, [me?.id, openId]);
   useEffect(() => { if (me) load(); }, [me, load]);
 
   // Validate stored identity on mount
@@ -98,7 +104,19 @@ export default function App() {
     setMe(null);
   };
   const open = tickets.find((x) => x.id === openId) || null;
-  const markSent = (id, left) => setTickets((l) => l.map((x) => (x.id === id ? { ...x, sentAt: Date.now(), savedWith: left } : x)));
+  const markSent = (id, left) => {
+    const entry = { sentAt: Date.now(), savedWith: left };
+    try {
+      // Re-read immediately before write to avoid overwriting concurrent tab changes
+      const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
+      stored[id] = entry;
+      localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored));
+      // Only update state after successful persistence
+      setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
+    } catch (e) {
+      console.error("Failed to persist sent status:", e);
+    }
+  };
 
   return (
     <div className="er-root">
@@ -177,43 +195,54 @@ function SignIn({ onAuth }) {
 
 function Queue({ tickets, me, onOpen, onSignOut, err }) {
   const t = useTick();
+  const [tab, setTab] = useState("pending");
   const pending = tickets.filter((x) => !x.sentAt).sort((a, b) => a.deadline - b.deadline);
-  const done = tickets.filter((x) => x.sentAt);
+  const done = tickets.filter((x) => x.sentAt).sort((a, b) => b.sentAt - a.sentAt);
   return (
     <>
       <header className="er-top">
         <div className="er-eyebrow"><Radio size={13} /> Enterprise Elite · first response</div>
         <button className="er-id" onClick={onSignOut} title="Sign out"><span className="er-avatar">{initials(me.name)}</span><span>{me.name}</span></button>
       </header>
+      <div className="er-tabs">
+        <button className={`er-tab ${tab === "pending" ? "er-tab-on" : ""}`} onClick={() => setTab("pending")}>Pending{pending.length > 0 && ` (${pending.length})`}</button>
+        <button className={`er-tab ${tab === "archive" ? "er-tab-on" : ""}`} onClick={() => setTab("archive")}>Completed{done.length > 0 && ` (${done.length})`}</button>
+      </div>
       <div className="er-scroll">
         {err && <div className="er-err">{err}</div>}
-        {pending.length === 0 && !err && (
-          <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every Enterprise Elite ticket has a first response.</p></div>
-        )}
-        {pending.map((x) => {
-          const left = Math.round((x.deadline - t) / 1000), k = tier(left);
-          return (
-            <button key={x.id} className="er-card" onClick={() => onOpen(x.id)}>
-              <div className="er-card-head">
-                <span className="er-acct"><Building2 size={14} />{x.account}</span>
-                {x.paged && <span className="er-pd">PAGED</span>}
-              </div>
-              <div className="er-subj">{x.subject}</div>
-              <div className="er-card-meta"><span className="er-chan">{x.channel}</span><span className="er-created">{ago(new Date(x.createdAt).getTime())}</span></div>
-              <div className="er-card-foot">
-                <span className={`er-chip er-${k}`}>{k === "breach" ? <AlertTriangle size={13} /> : <Clock size={13} />}{k === "breach" ? `BREACHED +${fmtBreach(left)}` : fmt(left)}</span>
-              </div>
-            </button>
-          );
-        })}
-        {done.length > 0 && <div className="er-section">Responded</div>}
-        {done.map((x) => (
-          <div key={x.id} className="er-card er-card-done">
-            <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
-              <span className="er-chip er-safe"><CheckCircle2 size={13} />{fmt(x.savedWith)} to spare</span></div>
-            <div className="er-subj er-muted">{x.subject}</div>
-          </div>
-        ))}
+        {tab === "pending" && <>
+          {pending.length === 0 && !err && (
+            <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every Enterprise Elite ticket has a first response.</p></div>
+          )}
+          {pending.map((x) => {
+            const left = Math.round((x.deadline - t) / 1000), k = tier(left);
+            return (
+              <button key={x.id} className="er-card" onClick={() => onOpen(x.id)}>
+                <div className="er-card-head">
+                  <span className="er-acct"><Building2 size={14} />{x.account}</span>
+                  {x.paged && <span className="er-pd">PAGED</span>}
+                </div>
+                <div className="er-subj">{x.subject}</div>
+                <div className="er-card-meta"><span className="er-chan">{x.channel}</span><span className="er-created">{ago(new Date(x.createdAt).getTime())}</span></div>
+                <div className="er-card-foot">
+                  <span className={`er-chip er-${k}`}>{k === "breach" ? <AlertTriangle size={13} /> : <Clock size={13} />}{k === "breach" ? `BREACHED +${fmtBreach(left)}` : fmt(left)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </>}
+        {tab === "archive" && <>
+          {done.length === 0 && (
+            <div className="er-empty"><CheckCircle2 size={28} /><p>No archived responses yet.</p></div>
+          )}
+          {done.map((x) => (
+            <div key={x.id} className="er-card er-card-done">
+              <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
+                <span className="er-chip er-safe"><CheckCircle2 size={13} />{x.savedWith > 0 ? `${fmt(x.savedWith)} to spare` : "Breached"}</span></div>
+              <div className="er-subj er-muted">{x.subject}</div>
+            </div>
+          ))}
+        </>}
       </div>
     </>
   );
