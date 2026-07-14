@@ -8,7 +8,9 @@ import { api } from "./api.js";
 const CRIT = 180, WARN = 480;
 const pad = (n) => String(n).padStart(2, "0");
 const fmt = (s) => `${pad(Math.floor(Math.max(0, s) / 60))}:${pad(Math.max(0, s) % 60)}`;
+const fmtBreach = (s) => { const abs = Math.abs(s); const m = Math.floor(abs / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m ${pad(abs % 60)}s`; };
 const tier = (s) => (s <= 0 ? "breach" : s < CRIT ? "crit" : s < WARN ? "warn" : "safe");
+const ago = (ms) => { if (!ms || isNaN(ms)) return ""; const s = Math.floor((Date.now() - ms) / 1000); if (s < 60) return "just now"; const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`; const h = Math.floor(m / 60); if (h < 24) return `${h}h ${m % 60}m ago`; return `${Math.floor(h / 24)}d ago`; };
 const useTick = () => { const [, s] = useState(0); useEffect(() => { const t = setInterval(() => s((n) => n + 1), 1000); return () => clearInterval(t); }, []); return Date.now(); };
 
 const MOCK = import.meta.env.VITE_USE_MOCK === "true";
@@ -197,9 +199,9 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
                 {x.paged && <span className="er-pd">PAGED</span>}
               </div>
               <div className="er-subj">{x.subject}</div>
+              <div className="er-card-meta"><span className="er-chan">{x.channel}</span><span className="er-created">{ago(new Date(x.createdAt).getTime())}</span></div>
               <div className="er-card-foot">
-                <span className="er-chan">{x.channel}</span>
-                <span className={`er-chip er-${k}`}>{k === "breach" ? <AlertTriangle size={13} /> : <Clock size={13} />}{k === "breach" ? "BREACHED" : fmt(left)}</span>
+                <span className={`er-chip er-${k}`}>{k === "breach" ? <AlertTriangle size={13} /> : <Clock size={13} />}{k === "breach" ? `BREACHED +${fmtBreach(left)}` : fmt(left)}</span>
               </div>
             </button>
           );
