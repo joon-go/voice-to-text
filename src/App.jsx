@@ -33,7 +33,11 @@ export default function App() {
 
   const load = useCallback(() => {
     api.queue().then((t) => {
-      setTickets(t);
+      setTickets((prev) => {
+        const sent = new Map(prev.filter((x) => x.sentAt).map((x) => [x.id, x]));
+        const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
+        return merged;
+      });
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
