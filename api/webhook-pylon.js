@@ -21,10 +21,10 @@ export default async function handler(req, res) {
     event_action: "trigger",
     dedup_key: `pylon-${issueId}`,
     payload: {
-      summary: `[Enterprise Elite P0] ${account}: ${title}`,
+      summary: `[Intuit P0] ${account}: ${title}`,
       severity: "critical",
       source: "Pylon",
-      component: "Enterprise Elite Support",
+      component: "Intuit Support",
       custom_details: {
         issue_number: issueNumber,
         account,

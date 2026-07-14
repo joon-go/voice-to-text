@@ -37,9 +37,13 @@ export default function App() {
 
   const load = useCallback(() => {
     api.queue().then((t) => {
-      const sent = getSentMap(me.id);
+      const sent = getSentMap(me?.id);
       const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
-      setTickets(merged);
+      // Union completed ticket snapshots from localStorage with fresh API tickets
+      const completedSnapshots = Array.from(sent.entries())
+        .filter(([id, data]) => data.ticket && !t.some((x) => x.id === id))
+        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith }));
+      setTickets([...merged, ...completedSnapshots]);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
         const linked = params.get("issue");
@@ -109,7 +113,8 @@ export default function App() {
     try {
       // Re-read immediately before write to avoid overwriting concurrent tab changes
       const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
-      stored[id] = entry;
+      const ticket = tickets.find((x) => x.id === id);
+      stored[id] = { ...entry, ticket };
       localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored));
       // Only update state after successful persistence
       setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
@@ -186,7 +191,7 @@ function SignIn({ onAuth }) {
     <div className="er-root er-signin">
       <Radio size={26} />
       <h1>First Response</h1>
-      <p>Enterprise Elite · sign in to respond as you</p>
+      <p>Intuit · sign in to respond as you</p>
       {err && <div className="er-err">{err}</div>}
       {busy ? <span className="er-words">Verifying…</span> : <div ref={btnRef} className="er-google-btn" />}
     </div>
@@ -201,7 +206,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
   return (
     <>
       <header className="er-top">
-        <div className="er-eyebrow"><Radio size={13} /> Enterprise Elite · first response</div>
+        <div className="er-eyebrow"><Radio size={13} /> Intuit · first response</div>
         <button className="er-id" onClick={onSignOut} title="Sign out"><span className="er-avatar">{initials(me.name)}</span><span>{me.name}</span></button>
       </header>
       <div className="er-tabs">
@@ -212,7 +217,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
         {err && <div className="er-err">{err}</div>}
         {tab === "pending" && <>
           {pending.length === 0 && !err && (
-            <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every Enterprise Elite ticket has a first response.</p></div>
+            <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every Intuit ticket has a first response.</p></div>
           )}
           {pending.map((x) => {
             const left = Math.round((x.deadline - t) / 1000), k = tier(left);
@@ -232,16 +237,22 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
           })}
         </>}
         {tab === "archive" && <>
-          {done.length === 0 && (
-            <div className="er-empty"><CheckCircle2 size={28} /><p>No archived responses yet.</p></div>
+          {done.length === 0 && !err && (
+            <div className="er-empty"><CheckCircle2 size={28} /><p>No completed responses yet.</p></div>
           )}
-          {done.map((x) => (
-            <div key={x.id} className="er-card er-card-done">
-              <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
-                <span className="er-chip er-safe"><CheckCircle2 size={13} />{x.savedWith > 0 ? `${fmt(x.savedWith)} to spare` : "Breached"}</span></div>
-              <div className="er-subj er-muted">{x.subject}</div>
-            </div>
-          ))}
+          {done.map((x) => {
+            const breached = x.savedWith <= 0;
+            const responseMs = x.sentAt - new Date(x.createdAt).getTime();
+            const responseMin = Math.max(1, Math.round(responseMs / 60000));
+            return (
+              <a key={x.id} className="er-card er-card-done" href={`https://app.usepylon.com/support/issues/views/all-issues?issueNumber=${x.number || ""}&view=fs`} target="_blank" rel="noopener noreferrer">
+                <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
+                  <span className={`er-chip ${breached ? "er-crit" : "er-safe"}`}>{breached ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}{breached ? "Breached" : "On time"}</span></div>
+                <div className="er-subj er-muted">{x.subject}</div>
+                <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
+              </a>
+            );
+          })}
         </>}
       </div>
     </>
