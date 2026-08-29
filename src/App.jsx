@@ -38,11 +38,10 @@ export default function App() {
   const load = useCallback(() => {
     api.queue().then((t) => {
       const sent = getSentMap(me?.id);
-      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith } : x);
-      // Union completed ticket snapshots from localStorage with fresh API tickets
+      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith, resolved: sent.get(x.id).resolved || false } : x);
       const completedSnapshots = Array.from(sent.entries())
         .filter(([id, data]) => data.ticket && !t.some((x) => x.id === id))
-        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith }));
+        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith, resolved: data.resolved || false }));
       setTickets([...merged, ...completedSnapshots]);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
@@ -111,15 +110,26 @@ export default function App() {
   const markSent = (id, left) => {
     const entry = { sentAt: Date.now(), savedWith: left };
     try {
-      // Re-read immediately before write to avoid overwriting concurrent tab changes
       const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
       const ticket = tickets.find((x) => x.id === id);
       stored[id] = { ...entry, ticket };
       localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored));
-      // Only update state after successful persistence
       setTickets((l) => l.map((x) => (x.id === id ? { ...x, ...entry } : x)));
     } catch (e) {
       console.error("Failed to persist sent status:", e);
+    }
+  };
+
+  const resolveIncident = async (id) => {
+    try {
+      await api.resolveIncident(id);
+      try {
+        const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
+        if (stored[id]) { stored[id].resolved = true; localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored)); }
+      } catch {}
+      setTickets((l) => l.map((x) => (x.id === id ? { ...x, resolved: true } : x)));
+    } catch (e) {
+      setErr(`Failed to resolve: ${e.message}`);
     }
   };
 
@@ -127,7 +137,7 @@ export default function App() {
     <div className="er-root">
       {open
         ? <Ticket ticket={open} me={me} onBack={() => { setOpenId(null); load(); }} onSent={markSent} />
-        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} />}
+        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} onResolve={resolveIncident} />}
     </div>
   );
 }
@@ -198,7 +208,7 @@ function SignIn({ onAuth }) {
   );
 }
 
-function Queue({ tickets, me, onOpen, onSignOut, err }) {
+function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
   const t = useTick();
   const [tab, setTab] = useState("pending");
   const pending = tickets.filter((x) => !x.sentAt).sort((a, b) => a.deadline - b.deadline);
@@ -245,12 +255,16 @@ function Queue({ tickets, me, onOpen, onSignOut, err }) {
             const responseMs = x.sentAt - new Date(x.createdAt).getTime();
             const responseMin = Math.max(1, Math.round(responseMs / 60000));
             return (
-              <a key={x.id} className="er-card er-card-done" href={`https://app.usepylon.com/support/issues/views/all-issues?issueNumber=${x.number || ""}&view=fs`} target="_blank" rel="noopener noreferrer">
-                <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
-                  <span className={`er-chip ${breached ? "er-crit" : "er-safe"}`}>{breached ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}{breached ? "Breached" : "On time"}</span></div>
-                <div className="er-subj er-muted">{x.subject}</div>
-                <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
-              </a>
+              <div key={x.id} className="er-card er-card-done">
+                <a className="er-card-link" href={`https://app.usepylon.com/support/issues/views/all-issues?issueNumber=${x.number || ""}&view=fs`} target="_blank" rel="noopener noreferrer">
+                  <div className="er-card-head"><span className="er-acct"><Building2 size={14} />{x.account}</span>
+                    <span className={`er-chip ${breached ? "er-crit" : "er-safe"}`}>{breached ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}{breached ? "Breached" : "On time"}</span></div>
+                  <div className="er-subj er-muted">{x.subject}</div>
+                  <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
+                </a>
+                {!x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
+                {x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
+              </div>
             );
           })}
         </>}
