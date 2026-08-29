@@ -121,8 +121,9 @@ export default function App() {
   };
 
   const resolveIncident = async (id) => {
+    setErr("");
     try {
-      await api.resolveIncident(id);
+      await api.resolveIncident(id, me.id);
       try {
         const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
         if (stored[id]) { stored[id].resolved = true; localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored)); }
@@ -262,8 +263,8 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
                   <div className="er-subj er-muted">{x.subject}</div>
                   <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
                 </a>
-                {!x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
-                {x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
+                {x.paged && !x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
+                {x.paged && x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
               </div>
             );
           })}
