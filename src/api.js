@@ -47,4 +47,8 @@ export const api = {
     if (MOCK) return { ok: true };
     return post("/api/respond", { issueId, body, userId, incidentId });
   },
+  async resolveIncident(issueId, userId) {
+    if (MOCK) return { ok: true };
+    return post("/api/resolve-incident", { issueId, userId });
+  },
 };
