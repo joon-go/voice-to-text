@@ -7,19 +7,17 @@ function looksOriginal(text) {
   return words.length >= 3;
 }
 
-async function ackPagerDuty(incidentId) {
-  const token = process.env.PAGERDUTY_API_TOKEN;
-  const from = process.env.PAGERDUTY_FROM_EMAIL;
-  if (!token || !from || !incidentId) return;
-  await fetch(`https://api.pagerduty.com/incidents/${incidentId}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Token token=${token}`,
-      From: from,
-      "Content-Type": "application/json",
-      Accept: "application/vnd.pagerduty+json;version=2",
-    },
-    body: JSON.stringify({ incident: { type: "incident_reference", status: "acknowledged" } }),
+async function resolvePagerDuty(issueId) {
+  const routingKey = process.env.PAGERDUTY_ROUTING_KEY;
+  if (!routingKey || !issueId) return;
+  await fetch("https://events.pagerduty.com/v2/enqueue", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      routing_key: routingKey,
+      event_action: "resolve",
+      dedup_key: `pylon-${issueId}`,
+    }),
   }).catch(() => {});
 }
 
@@ -43,7 +41,7 @@ export default async function handler(req, res) {
 
   try {
     const message = await postFirstResponse({ issueId, body, userId });
-    await ackPagerDuty(incidentId);
+    await resolvePagerDuty(issueId);
     res.status(200).json({ ok: true, messageId: message.id });
   } catch (err) {
     res.status(502).json({ error: `Couldn't post the response to Pylon: ${err.message || err}` });
