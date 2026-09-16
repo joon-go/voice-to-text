@@ -285,6 +285,9 @@ function Ticket({ ticket, me, onBack, onSent }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [frozenLeft, setFrozenLeft] = useState(null);
+  const [promoted, setPromoted] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [respondersAdded, setRespondersAdded] = useState(false);
   const recRef = useRef(null), baseRef = useRef("");
 
   useEffect(() => { api.summarize(ticket.id, ticket.summary).then(setSummary).catch(() => {}); }, [ticket.id, ticket.summary]);
@@ -321,6 +324,17 @@ function Ticket({ ticket, me, onBack, onSent }) {
       await api.respond({ issueId: ticket.id, body: text.trim(), userId: me.id, incidentId: ticket.incidentId });
       setFrozenLeft(Math.max(0, left)); setSent(true); onSent(ticket.id, Math.max(0, left));
     } catch (e) { setErr(String(e.message)); setBusy(false); }
+  };
+
+  const promote = async () => {
+    if (promoting || promoted) return;
+    setPromoting(true); setErr("");
+    try {
+      const result = await api.promoteMajor(ticket.id, me.id, me.email);
+      setPromoted(true);
+      setRespondersAdded(result.respondersAdded);
+    } catch (e) { setErr(String(e.message)); }
+    setPromoting(false);
   };
 
   if (sent) return (
@@ -369,6 +383,10 @@ function Ticket({ ticket, me, onBack, onSent }) {
         <button className="er-btn er-btn-send" disabled={!ready} onClick={send}>
           <Send size={17} /> {busy ? "Sending…" : "Send first response"}</button>
         {!ready && !busy && <span className="er-hint">Write at least a sentence to send</span>}
+        {!promoted && <button className="er-btn er-btn-major" disabled={promoting} onClick={promote}>
+          <AlertTriangle size={17} /> {promoting ? "Promoting…" : "Promote to Major Incident"}</button>}
+        {promoted && respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
+        {promoted && !respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident promoted · responders not added</span>}
       </div>
     </>
   );
