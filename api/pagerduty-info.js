@@ -11,6 +11,9 @@ async function pdGet(path) {
 export default async function handler(req, res) {
   if (!PD_API_KEY) return res.status(500).json({ error: "PAGERDUTY_API_KEY not configured" });
 
+  const secret = process.env.PD_INFO_SECRET;
+  if (!secret || req.query.key !== secret) return res.status(403).json({ error: "Forbidden" });
+
   try {
     const [services, priorities, policies] = await Promise.all([
       pdGet("/services?limit=25"),
@@ -24,6 +27,7 @@ export default async function handler(req, res) {
       escalation_policies: policies.escalation_policies.map((e) => ({ id: e.id, name: e.name })),
     });
   } catch (err) {
-    res.status(502).json({ error: err.message });
+    console.error("PagerDuty info failed:", err);
+    res.status(502).json({ error: "Failed to fetch PagerDuty metadata" });
   }
 }
