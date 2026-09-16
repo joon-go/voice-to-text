@@ -92,6 +92,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--ui);
 .er-btn-send{background:var(--safe);color:#072019}
 .er-btn-send:disabled{background:var(--surface2);color:var(--muted);cursor:default}
 .er-btn-ghost{background:var(--surface2);color:var(--text)}
+.er-btn-major{background:rgba(255,90,99,.12);color:var(--crit);border:1px solid var(--crit);padding:12px;font-size:14px}
+.er-btn-major:disabled{opacity:.6;cursor:default}
+.er-promoted-label{display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;color:var(--crit);font-weight:600;padding:8px}
 .er-hint{text-align:center;font-size:12px;color:var(--muted)}
 .er-sent{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px}
 .er-sent svg{color:var(--safe)}

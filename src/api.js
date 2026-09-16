@@ -51,4 +51,8 @@ export const api = {
     if (MOCK) return { ok: true };
     return post("/api/resolve-incident", { issueId, userId });
   },
+  async promoteMajor(issueId, userId, userEmail) {
+    if (MOCK) return { ok: true, incidentId: "PD-MOCK", respondersAdded: true };
+    return post("/api/promote-major", { issueId, userId, userEmail });
+  },
 };
