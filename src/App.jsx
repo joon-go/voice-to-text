@@ -38,10 +38,10 @@ export default function App() {
   const load = useCallback(() => {
     api.queue().then((t) => {
       const sent = getSentMap(me?.id);
-      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith, resolved: sent.get(x.id).resolved || false } : x);
+      const merged = t.map((x) => sent.has(x.id) ? { ...x, sentAt: sent.get(x.id).sentAt, savedWith: sent.get(x.id).savedWith, resolved: sent.get(x.id).resolved || false, promoted: sent.get(x.id).promoted || false, respondersAdded: sent.get(x.id).respondersAdded || false } : x);
       const completedSnapshots = Array.from(sent.entries())
         .filter(([id, data]) => data.ticket && !t.some((x) => x.id === id))
-        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith, resolved: data.resolved || false }));
+        .map(([id, data]) => ({ ...data.ticket, sentAt: data.sentAt, savedWith: data.savedWith, resolved: data.resolved || false, promoted: data.promoted || false, respondersAdded: data.respondersAdded || false }));
       setTickets([...merged, ...completedSnapshots]);
       if (!openId) {
         const params = new URLSearchParams(window.location.search);
@@ -134,11 +134,25 @@ export default function App() {
     }
   };
 
+  const promoteIncident = async (id) => {
+    setErr("");
+    try {
+      const result = await api.promoteMajor(id, me.id, me.email);
+      try {
+        const stored = JSON.parse(localStorage.getItem(`fr_sent:${me.id}`) || "{}");
+        if (stored[id]) { stored[id].promoted = true; stored[id].respondersAdded = result.respondersAdded; localStorage.setItem(`fr_sent:${me.id}`, JSON.stringify(stored)); }
+      } catch {}
+      setTickets((l) => l.map((x) => (x.id === id ? { ...x, promoted: true, respondersAdded: result.respondersAdded } : x)));
+    } catch (e) {
+      setErr(`Failed to promote: ${e.message}`);
+    }
+  };
+
   return (
     <div className="er-root">
       {open
         ? <Ticket ticket={open} me={me} onBack={() => { setOpenId(null); load(); }} onSent={markSent} />
-        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} onResolve={resolveIncident} />}
+        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} onResolve={resolveIncident} onPromote={promoteIncident} />}
     </div>
   );
 }
@@ -209,7 +223,7 @@ function SignIn({ onAuth }) {
   );
 }
 
-function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
+function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote }) {
   const t = useTick();
   const [tab, setTab] = useState("pending");
   const pending = tickets.filter((x) => !x.sentAt).sort((a, b) => a.deadline - b.deadline);
@@ -263,8 +277,11 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
                   <div className="er-subj er-muted">{x.subject}</div>
                   <div className="er-card-meta"><span className="er-chan">Responded in {responseMin}m</span><span className="er-created">{ago(x.sentAt)}</span></div>
                 </a>
-                {x.paged && !x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
-                {x.paged && x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
+                {!x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
+                {x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
+                {!x.promoted && <button className="er-btn er-btn-major er-promote-card" onClick={() => onPromote(x.id)}><AlertTriangle size={14} /> Promote to Major</button>}
+                {x.promoted && x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
+                {x.promoted && !x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · responders not added</span>}
               </div>
             );
           })}
