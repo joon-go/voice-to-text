@@ -1,9 +1,9 @@
 import { listUsers } from "./_pylon.js";
 
 const PD_API_KEY = process.env.PAGERDUTY_API_KEY;
-const PD_SERVICE_ID = process.env.PD_SERVICE_ID || "P0B362Z";
-const PD_PRIORITY_P0 = process.env.PD_PRIORITY_P0 || "P77KNWG";
-const PD_ENG_POLICY = process.env.PD_ENG_ESCALATION_POLICY || "PFPPCA0";
+const PD_SERVICE_ID = process.env.PD_SERVICE_ID;
+const PD_PRIORITY_P0 = process.env.PD_PRIORITY_P0;
+const PD_ENG_POLICY = process.env.PD_ENG_ESCALATION_POLICY;
 
 function pdHeaders(userEmail) {
   return {
@@ -23,18 +23,9 @@ async function pdGet(path) {
 
 async function findIncidentByDedup(dedupKey) {
   const { incidents = [] } = await pdGet(
-    `/incidents?service_ids[]=${PD_SERVICE_ID}&statuses[]=triggered&statuses[]=acknowledged&limit=100`
+    `/incidents?service_ids[]=${PD_SERVICE_ID}&statuses[]=triggered&statuses[]=acknowledged&incident_key=${encodeURIComponent(dedupKey)}&limit=1`
   );
-  for (const inc of incidents) {
-    if (!inc.alerts) {
-      try {
-        const { alerts = [] } = await pdGet(`/incidents/${inc.id}/alerts`);
-        const match = alerts.some((a) => a.body?.cef_details?.dedup_key === dedupKey);
-        if (match) return inc;
-      } catch {}
-    }
-  }
-  return null;
+  return incidents[0] || null;
 }
 
 export default async function handler(req, res) {
@@ -42,7 +33,7 @@ export default async function handler(req, res) {
 
   const { issueId, userId, userEmail } = req.body || {};
   if (!issueId || !userId) return res.status(400).json({ error: "issueId and userId required" });
-  if (!PD_API_KEY) return res.status(500).json({ error: "PAGERDUTY_API_KEY not configured" });
+  if (!PD_API_KEY || !PD_SERVICE_ID || !PD_PRIORITY_P0 || !PD_ENG_POLICY) return res.status(500).json({ error: "PagerDuty configuration incomplete" });
 
   try {
     const users = await listUsers();

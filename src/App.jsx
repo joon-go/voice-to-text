@@ -287,6 +287,7 @@ function Ticket({ ticket, me, onBack, onSent }) {
   const [frozenLeft, setFrozenLeft] = useState(null);
   const [promoted, setPromoted] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const [respondersAdded, setRespondersAdded] = useState(false);
   const recRef = useRef(null), baseRef = useRef("");
 
   useEffect(() => { api.summarize(ticket.id, ticket.summary).then(setSummary).catch(() => {}); }, [ticket.id, ticket.summary]);
@@ -329,8 +330,9 @@ function Ticket({ ticket, me, onBack, onSent }) {
     if (promoting || promoted) return;
     setPromoting(true); setErr("");
     try {
-      await api.promoteMajor(ticket.id, me.id, me.email);
+      const result = await api.promoteMajor(ticket.id, me.id, me.email);
       setPromoted(true);
+      setRespondersAdded(result.respondersAdded);
     } catch (e) { setErr(String(e.message)); }
     setPromoting(false);
   };
@@ -383,7 +385,8 @@ function Ticket({ ticket, me, onBack, onSent }) {
         {!ready && !busy && <span className="er-hint">Write at least a sentence to send</span>}
         {!promoted && <button className="er-btn er-btn-major" disabled={promoting} onClick={promote}>
           <AlertTriangle size={17} /> {promoting ? "Promoting…" : "Promote to Major Incident"}</button>}
-        {promoted && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
+        {promoted && respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
+        {promoted && !respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident promoted · responders not added</span>}
       </div>
     </>
   );
