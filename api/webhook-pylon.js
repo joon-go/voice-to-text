@@ -17,6 +17,28 @@ export default async function handler(req, res) {
   if (!issueId) return res.status(400).json({ error: "No issue ID in payload" });
   if (!PD_ROUTING_KEY) return res.status(500).json({ error: "PAGERDUTY_ROUTING_KEY not configured" });
 
+  const action = event?.event_action || "trigger";
+
+  if (action === "resolve") {
+    const pdPayload = {
+      routing_key: PD_ROUTING_KEY,
+      event_action: "resolve",
+      dedup_key: `pylon-${issueId}`,
+    };
+    try {
+      const r = await fetch("https://events.pagerduty.com/v2/enqueue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pdPayload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || JSON.stringify(data));
+      return res.status(200).json({ ok: true, action: "resolve", dedup_key: `pylon-${issueId}` });
+    } catch (err) {
+      return res.status(502).json({ error: `PagerDuty resolve failed: ${err.message}` });
+    }
+  }
+
   const deeplink = `${APP_URL}?issue=${issueId}`;
 
   const pdPayload = {
@@ -49,7 +71,7 @@ export default async function handler(req, res) {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.message || JSON.stringify(data));
-    res.status(200).json({ ok: true, dedup_key: data.dedup_key });
+    res.status(200).json({ ok: true, action: "trigger", dedup_key: data.dedup_key });
   } catch (err) {
     res.status(502).json({ error: `PagerDuty trigger failed: ${err.message}` });
   }
