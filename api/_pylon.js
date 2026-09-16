@@ -3,7 +3,7 @@ const BASE = "https://api.usepylon.com";
 
 const TOKEN = process.env.PYLON_API_TOKEN;
 const TIER_SLUG = process.env.PYLON_TIER_FIELD_SLUG || "support_tier";
-const TIER_VALUES = (process.env.PYLON_TIER_VALUE || "Enterprise Elite").split(",").map((s) => s.trim()).filter(Boolean);
+const TIER_VALUES = (process.env.PYLON_TIER_VALUE || "Enterprise Elite,Enterprise").split(",").map((s) => s.trim()).filter(Boolean);
 const PRIORITY_SLUG = process.env.PYLON_PRIORITY_FIELD_SLUG || "priority";
 const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "Urgent";
 const TEAM_ID = process.env.PYLON_TEAM_ID || "";

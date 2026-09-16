@@ -202,7 +202,7 @@ function SignIn({ onAuth }) {
     <div className="er-root er-signin">
       <Radio size={26} />
       <h1>First Response</h1>
-      <p>Intuit · sign in to respond as you</p>
+      <p>Enterprise · sign in to respond as you</p>
       {err && <div className="er-err">{err}</div>}
       {busy ? <span className="er-words">Verifying…</span> : <div ref={btnRef} className="er-google-btn" />}
     </div>
@@ -217,7 +217,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
   return (
     <>
       <header className="er-top">
-        <div className="er-eyebrow"><Radio size={13} /> Intuit · first response</div>
+        <div className="er-eyebrow"><Radio size={13} /> Enterprise · first response</div>
         <button className="er-id" onClick={onSignOut} title="Sign out"><span className="er-avatar">{initials(me.name)}</span><span>{me.name}</span></button>
       </header>
       <div className="er-tabs">
@@ -228,7 +228,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve }) {
         {err && <div className="er-err">{err}</div>}
         {tab === "pending" && <>
           {pending.length === 0 && !err && (
-            <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every Intuit ticket has a first response.</p></div>
+            <div className="er-empty"><CheckCircle2 size={28} /><p>Nothing waiting. Every enterprise ticket has a first response.</p></div>
           )}
           {pending.map((x) => {
             const left = Math.round((x.deadline - t) / 1000), k = tier(left);
