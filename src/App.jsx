@@ -283,7 +283,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote, prom
                 </a>
                 {!x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
                 {x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
-                {!x.promoted && <button className="er-btn er-btn-major er-promote-card" disabled={promotingIds.has(x.id)} onClick={() => onPromote(x.id)}><AlertTriangle size={14} /> {promotingIds.has(x.id) ? "Promoting…" : "Promote to Major"}</button>}
+                {!x.promoted && !x.resolved && <button className="er-btn er-btn-major er-promote-card" disabled={promotingIds.has(x.id)} onClick={() => onPromote(x.id)}><AlertTriangle size={14} /> {promotingIds.has(x.id) ? "Promoting…" : "Promote to Major"}</button>}
                 {x.promoted && x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
                 {x.promoted && !x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · responders not added</span>}
               </div>
