@@ -24,6 +24,7 @@ export default function App() {
   const [tickets, setTickets] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
+  const [promotingIds, setPromotingIds] = useState(new Set());
 
   const handleAuth = useCallback(async (user) => {
     const persisted = { ...user, _loginAt: Date.now() };
@@ -135,6 +136,8 @@ export default function App() {
   };
 
   const promoteIncident = async (id) => {
+    if (promotingIds.has(id)) return;
+    setPromotingIds((s) => new Set(s).add(id));
     setErr("");
     try {
       const result = await api.promoteMajor(id, me.id, me.email);
@@ -145,6 +148,8 @@ export default function App() {
       setTickets((l) => l.map((x) => (x.id === id ? { ...x, promoted: true, respondersAdded: result.respondersAdded } : x)));
     } catch (e) {
       setErr(`Failed to promote: ${e.message}`);
+    } finally {
+      setPromotingIds((s) => { const n = new Set(s); n.delete(id); return n; });
     }
   };
 
@@ -152,7 +157,7 @@ export default function App() {
     <div className="er-root">
       {open
         ? <Ticket ticket={open} me={me} onBack={() => { setOpenId(null); load(); }} onSent={markSent} />
-        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} onResolve={resolveIncident} onPromote={promoteIncident} />}
+        : <Queue tickets={tickets} me={me} onOpen={setOpenId} onSignOut={signOut} err={err} onResolve={resolveIncident} onPromote={promoteIncident} promotingIds={promotingIds} />}
     </div>
   );
 }
@@ -223,7 +228,7 @@ function SignIn({ onAuth }) {
   );
 }
 
-function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote }) {
+function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote, promotingIds }) {
   const t = useTick();
   const [tab, setTab] = useState("pending");
   const pending = tickets.filter((x) => !x.sentAt).sort((a, b) => a.deadline - b.deadline);
@@ -279,7 +284,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote }) {
                 </a>
                 {!x.resolved && <button className="er-resolve-btn" onClick={() => onResolve(x.id)}>Resolve incident</button>}
                 {x.resolved && <span className="er-resolved-label"><CheckCircle2 size={13} />Incident resolved</span>}
-                {!x.promoted && <button className="er-btn er-btn-major er-promote-card" onClick={() => onPromote(x.id)}><AlertTriangle size={14} /> Promote to Major</button>}
+                {!x.promoted && <button className="er-btn er-btn-major er-promote-card" disabled={promotingIds.has(x.id)} onClick={() => onPromote(x.id)}><AlertTriangle size={14} /> {promotingIds.has(x.id) ? "Promoting…" : "Promote to Major"}</button>}
                 {x.promoted && x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · Engineering paged</span>}
                 {x.promoted && !x.respondersAdded && <span className="er-promoted-label"><AlertTriangle size={13} />Major Incident · responders not added</span>}
               </div>
