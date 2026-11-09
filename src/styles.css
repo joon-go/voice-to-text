@@ -32,6 +32,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--ui);
 .er-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .er-acct{display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px}
 .er-pd{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--crit);border:1px solid var(--crit);border-radius:5px;padding:2px 6px}
+.er-tier{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;border-radius:5px;padding:2px 6px;text-transform:uppercase}
+.er-tier-elite{color:var(--warn);border:1px solid var(--warn)}
+.er-tier-premium{color:var(--muted);border:1px solid var(--line)}
 .er-subj{font-size:14px;color:var(--muted);margin-bottom:8px;line-height:1.35}
 .er-card-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .er-created{font-family:var(--mono);font-size:11px;color:var(--muted)}

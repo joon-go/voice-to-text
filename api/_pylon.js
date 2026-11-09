@@ -9,6 +9,19 @@ const PRIORITY_VALUE = process.env.PYLON_PRIORITY_VALUE || "Urgent";
 const TEAM_ID = process.env.PYLON_TEAM_ID || "";
 const BOT_IDS = (process.env.PYLON_BOT_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
+const SLA_BY_TIER = {
+  enterprise_elite: Number(process.env.SLA_ELITE_MINUTES || 15),
+  enterprise: Number(process.env.SLA_PREMIUM_MINUTES || 120),
+};
+const SLA_DEFAULT_MINUTES = Number(process.env.SLA_MINUTES || 120);
+
+function slaForTier(tierValues) {
+  for (const t of tierValues || []) {
+    if (SLA_BY_TIER[t] != null) return SLA_BY_TIER[t] * 60000;
+  }
+  return SLA_DEFAULT_MINUTES * 60000;
+}
+
 function headers() {
   return { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
 }
@@ -37,7 +50,6 @@ export function needsFirstResponse(messages = []) {
 // Pylon REST API doesn't support custom_field_filters, so we fetch issues in small
 // batches and filter locally after fetching full details.
 export async function listEliteAwaitingFirstResponse() {
-  const slaMs = Number(process.env.SLA_MINUTES || 15) * 60000;
 
   const filters = [
     { field: "state", operator: "in", values: ["new"] },
@@ -109,6 +121,8 @@ export async function listEliteAwaitingFirstResponse() {
     }
 
     const source = (detail.source || issue.channel || "—");
+    const tierValues = detail.custom_fields?.support_tier?.values || issue.custom_fields?.support_tier?.values || [];
+    const slaMs = slaForTier(tierValues);
 
     out.push({
       id: issue.id,
@@ -120,6 +134,7 @@ export async function listEliteAwaitingFirstResponse() {
       subject: detail.title || issue.subject || "(no subject)",
       createdAt: detail.created_at || issue.created_at,
       deadline: new Date(detail.created_at || issue.created_at).getTime() + slaMs,
+      tier: tierValues[0] || "unknown",
       summary: (detail.body_text || detail.body_html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
       thread: [
         ...(detail.body_text || detail.body_html ? [{ from: "customer", body: detail.body_text || detail.body_html }] : []),
