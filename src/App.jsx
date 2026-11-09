@@ -255,6 +255,7 @@ function Queue({ tickets, me, onOpen, onSignOut, err, onResolve, onPromote, prom
               <button key={x.id} className="er-card" onClick={() => onOpen(x.id)}>
                 <div className="er-card-head">
                   <span className="er-acct"><Building2 size={14} />{x.account}</span>
+                  {x.tier && <span className={`er-tier ${x.tier === "enterprise_elite" ? "er-tier-elite" : "er-tier-premium"}`}>{x.tier === "enterprise_elite" ? "Elite" : "Premium"}</span>}
                 </div>
                 <div className="er-subj">{x.subject}</div>
                 <div className="er-card-meta"><span className="er-chan">{x.channel}</span><span className="er-created">{ago(new Date(x.createdAt).getTime())}</span></div>

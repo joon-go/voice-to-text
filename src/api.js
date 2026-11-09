@@ -4,14 +4,14 @@ const now = Date.now();
 
 const MOCK_USERS = [{ id: "u_joon", name: "Joon Go", email: "joon@coderabbit.ai" }];
 const MOCK_TICKETS = [
-  { id: "ISS-4821", account: "BMW Group", customer: "Lena Fischer", channel: "Slack Connect", paged: true, incidentId: "PD-1",
+  { id: "ISS-4821", account: "BMW Group", customer: "Lena Fischer", channel: "Slack Connect", paged: true, incidentId: "PD-1", tier: "enterprise_elite",
     subject: "Reviews stopped posting on PRs", deadline: now + 132000, createdAt: new Date(now - 768000).toISOString(),
     summary: "CodeRabbit stopped posting reviews on all PRs in their primary monorepo about an hour ago, with no config changes on their side; other repos still work. Ask whether the GitHub App install still shows active for that repo." },
-  { id: "ISS-4817", account: "Ramp", customer: "Marcus Hu", channel: "Slack Connect", paged: true,
-    subject: "Rate-limit errors on self-hosted runner", deadline: now + 408000, createdAt: new Date(now - 492000).toISOString(),
+  { id: "ISS-4817", account: "Ramp", customer: "Marcus Hu", channel: "Slack Connect", paged: true, tier: "enterprise",
+    subject: "Rate-limit errors on self-hosted runner", deadline: now + 3600000, createdAt: new Date(now - 492000).toISOString(),
     summary: "Their self-hosted runner is returning rate-limit errors since this morning's deploy; reviews queue but never complete on larger services. Confirm the runner's concurrency setting and recent version bump." },
-  { id: "ISS-4810", account: "Brex", customer: "Priya Nair", channel: "Email", paged: true,
-    subject: "Reviews missing on large monorepo PRs", deadline: now + 545000, createdAt: new Date(now - 355000).toISOString(),
+  { id: "ISS-4810", account: "Brex", customer: "Priya Nair", channel: "Email", paged: true, tier: "enterprise",
+    subject: "Reviews missing on large monorepo PRs", deadline: now + 3400000, createdAt: new Date(now - 355000).toISOString(),
     summary: "Reviews silently skip on PRs touching 500+ files while smaller PRs in the same repo work, starting after they enabled path filters. Check whether the path filters exclude the changed directories." },
 ];
 
