@@ -11,9 +11,9 @@ const BOT_IDS = (process.env.PYLON_BOT_IDS || "").split(",").map((s) => s.trim()
 
 const SLA_BY_TIER = {
   enterprise_elite: Number(process.env.SLA_ELITE_MINUTES || 15),
-  enterprise: Number(process.env.SLA_PREMIUM_MINUTES || 120),
+  enterprise: Number(process.env.SLA_PREMIUM_MINUTES || 60),
 };
-const SLA_DEFAULT_MINUTES = Number(process.env.SLA_MINUTES || 120);
+const SLA_DEFAULT_MINUTES = Number(process.env.SLA_MINUTES || 60);
 
 function slaForTier(tierValues) {
   for (const t of tierValues || []) {
